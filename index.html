@@ -575,6 +575,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 #swipe-prev,#swipe-next{color:var(--chord);font-size:14px}
 #swipe-pos{color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px}
 </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="app">
@@ -739,6 +740,15 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     </div>
   </div>
 
+  <!-- Google Drive Sync -->
+  <div class="drawer-section">
+    <h3>Google Drive Sync</h3>
+    <div id="drive-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">Not signed in</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <button class="drawer-btn" id="drive-signin-btn">Sign in with Google</button>
+      <button class="drawer-btn" id="drive-signout-btn" style="display:none">Sign out</button>
+    </div>
+  </div>
   <!-- Data -->
   <div class="drawer-section">
     <h3>Data</h3>
@@ -3031,6 +3041,165 @@ if(!window.matchMedia('(display-mode: standalone)').matches && !localStorage.get
   document.getElementById('install-dismiss').addEventListener('click',()=>{ banner.remove(); localStorage.setItem('cb_install_dismissed','1'); });
 }
 </script>
+<script>
+// ===== GOOGLE DRIVE AUTO-SYNC =====
+const GDRIVE_CLIENT_ID = '20477699052-ssl651m7bdc7an8grej8ij0fgioj0d1h.apps.googleusercontent.com';
+const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+const BACKUP_FILENAME = 'corded-backup.json';
+
+let driveAccessToken = null;
+let driveTokenClient = null;
+let driveFileId = null;
+let driveSyncEnabled = localStorage.getItem('cb_drive_sync') === '1';
+
+function updateDriveStatus(msg, signedIn){
+  const el = document.getElementById('drive-status');
+  if(el) el.textContent = msg;
+  const signInBtn = document.getElementById('drive-signin-btn');
+  const signOutBtn = document.getElementById('drive-signout-btn');
+  if(signInBtn) signInBtn.style.display = signedIn ? 'none' : '';
+  if(signOutBtn) signOutBtn.style.display = signedIn ? '' : 'none';
+}
+
+// Find or create the backup file on Drive
+async function getDriveFileId(){
+  if(driveFileId) return driveFileId;
+  const res = await fetch(
+    'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%22' + BACKUP_FILENAME + '%22',
+    { headers: { Authorization: 'Bearer ' + driveAccessToken } }
+  );
+  const data = await res.json();
+  if(data.files && data.files.length > 0){
+    driveFileId = data.files[0].id;
+  }
+  return driveFileId;
+}
+
+// Upload data to Drive
+async function driveBackup(){
+  if(!driveAccessToken) return;
+  try {
+    const payload = JSON.stringify({ songs, setlists, version: Date.now() });
+    const fileId = await getDriveFileId();
+    if(fileId){
+      // Update existing file
+      await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + driveAccessToken, 'Content-Type': 'application/json' },
+        body: payload
+      });
+    } else {
+      // Create new file in appDataFolder
+      const meta = { name: BACKUP_FILENAME, parents: ['appDataFolder'] };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      form.append('file', new Blob([payload], { type: 'application/json' }));
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + driveAccessToken },
+        body: form
+      });
+      const created = await res.json();
+      driveFileId = created.id;
+    }
+    updateDriveStatus('✓ Synced ' + new Date().toLocaleTimeString(), true);
+  } catch(e){
+    console.error('Drive backup failed:', e);
+    updateDriveStatus('Sync failed — will retry', true);
+  }
+}
+
+// Download and merge data from Drive
+async function driveRestore(){
+  if(!driveAccessToken) return;
+  try {
+    const fileId = await getDriveFileId();
+    if(!fileId){ driveBackup(); return; } // No backup yet — create one
+    const res = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+      headers: { Authorization: 'Bearer ' + driveAccessToken }
+    });
+    const data = await res.json();
+    if(data.songs && Array.isArray(data.songs)){
+      // Merge: combine local and drive songs, Drive wins on conflict (by id)
+      const localIds = new Set(songs.map(s=>s.id));
+      const driveOnly = data.songs.filter(s=>!localIds.has(s.id));
+      songs = [...songs, ...driveOnly];
+      // Merge setlists similarly
+      if(data.setlists && Array.isArray(data.setlists)){
+        const localSlIds = new Set(setlists.map(s=>s.id));
+        const driveOnlySl = data.setlists.filter(s=>!localSlIds.has(s.id));
+        setlists = [...setlists, ...driveOnlySl];
+        if(!setlists.length) setlists = [{id:'1',name:'Sunday Morning',songs:[]}];
+        activeSetlistIdx = 0;
+      }
+      save();
+      renderLibrary();
+      renderSetlist();
+      updateDriveStatus('✓ Restored ' + data.songs.length + ' songs', true);
+    }
+  } catch(e){
+    console.error('Drive restore failed:', e);
+  }
+}
+
+function initDriveClient(){
+  if(!window.google) return;
+  driveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPE,
+    callback: async (resp) => {
+      if(resp.error){ updateDriveStatus('Sign in failed', false); return; }
+      driveAccessToken = resp.access_token;
+      driveSyncEnabled = true;
+      localStorage.setItem('cb_drive_sync', '1');
+      updateDriveStatus('Signed in — syncing…', true);
+      await driveRestore();
+      driveBackup();
+    }
+  });
+  // Auto sign-in silently if previously signed in
+  if(driveSyncEnabled){
+    updateDriveStatus('Connecting to Drive…', false);
+    driveTokenClient.requestAccessToken({ prompt: '' });
+  }
+}
+
+// Wire buttons
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('drive-signin-btn').addEventListener('click', ()=>{
+    if(!driveTokenClient){ toast('Google not loaded yet, try again'); return; }
+    driveTokenClient.requestAccessToken({ prompt: 'consent' });
+  });
+  document.getElementById('drive-signout-btn').addEventListener('click', ()=>{
+    driveAccessToken = null;
+    driveSyncEnabled = false;
+    localStorage.removeItem('cb_drive_sync');
+    google.accounts.oauth2.revoke(driveAccessToken, ()=>{});
+    updateDriveStatus('Signed out', false);
+  });
+});
+
+// Auto backup when app goes to background or closes
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden' && driveAccessToken){
+    driveBackup();
+  }
+});
+
+// Init when Google script loads
+window.addEventListener('load', ()=>{
+  if(window.google) initDriveClient();
+  else {
+    // Poll briefly for Google script to load
+    let attempts = 0;
+    const t = setInterval(()=>{
+      if(window.google){ clearInterval(t); initDriveClient(); }
+      if(++attempts > 20) clearInterval(t);
+    }, 500);
+  }
+});
+</script>
+
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
