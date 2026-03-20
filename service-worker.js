@@ -1,10 +1,10 @@
-const CACHE_NAME = 'corded-v1';
+const CACHE_NAME = 'corded-v2';
+const BASE = 'https://andyvr0o-ui.github.io/Corded';
 const ASSETS = [
-  '/corded/',
-  '/corded/index.html',
-  '/corded/manifest.json',
-  '/corded/icon-192.png',
-  '/corded/icon-512.png'
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+  BASE + '/icon-192.png',
+  BASE + '/icon-512.png'
 ];
 
 self.addEventListener('install', e => {
@@ -36,6 +36,6 @@ self.addEventListener('fetch', e => {
           return response;
         })
       )
-      .catch(() => caches.match('/corded/index.html'))
+      .catch(() => caches.match(BASE + '/index.html'))
   );
 });
