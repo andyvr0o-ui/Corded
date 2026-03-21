@@ -3261,40 +3261,49 @@ async function driveRestore(){
 
 function initDriveClient(){
   if(!window.google) return;
+
+  const savedHint = localStorage.getItem('cb_drive_hint') || '';
+
   driveTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GDRIVE_CLIENT_ID,
     scope: GDRIVE_SCOPE,
+    // hint tells Google which account to use — suppresses account picker
+    hint: savedHint,
     callback: async (resp) => {
-      if(resp.error && resp.error !== 'immediate_failed'){
-        updateDriveStatus('Sign in failed — tap to retry', false);
-        return;
-      }
-      if(resp.error === 'immediate_failed'){
-        // Silent sign-in failed (token expired) — need user interaction
-        updateDriveStatus('Tap to reconnect Drive', false);
+      if(resp.error){
+        if(resp.error === 'immediate_failed' || resp.error === 'user_logged_out'){
+          updateDriveStatus('Tap to reconnect Drive', false);
+        } else {
+          updateDriveStatus('Sign in failed — tap to retry', false);
+        }
         return;
       }
       driveAccessToken = resp.access_token;
       driveSyncEnabled = true;
       localStorage.setItem('cb_drive_sync', '1');
-      // Store token expiry so we can refresh proactively
-      localStorage.setItem('cb_drive_expiry', Date.now() + (resp.expires_in * 1000));
-      updateDriveStatus('Signed in — syncing…', true);
-      await driveRestore();
-      driveBackup();
-      // Set up token refresh before expiry
-      const refreshIn = Math.max(0, (resp.expires_in - 60)) * 1000;
+      // Decode email from token to use as hint for future silent logins
+      try {
+        const payload = JSON.parse(atob(resp.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        if(payload.email) localStorage.setItem('cb_drive_hint', payload.email);
+      } catch(e){ /* token not a JWT — skip */ }
+      // Schedule silent token refresh before expiry
+      const refreshIn = Math.max(0, (resp.expires_in - 120)) * 1000;
       setTimeout(()=>{
         if(driveSyncEnabled && driveTokenClient){
           driveTokenClient.requestAccessToken({ prompt: '' });
         }
       }, refreshIn);
+      updateDriveStatus('Syncing…', true);
+      await driveRestore();
+      driveBackup();
     }
   });
-  // Auto sign-in silently if previously signed in
+
+  // Auto sign-in silently if previously signed in — no prompt, no UI
   if(driveSyncEnabled){
-    updateDriveStatus('Connecting to Drive…', false);
-    driveTokenClient.requestAccessToken({ prompt: '' });
+    updateDriveStatus('Connecting…', false);
+    // prompt:'' with hint = completely silent — no account picker shown
+    driveTokenClient.requestAccessToken({ prompt: '', hint: savedHint });
   }
 }
 
@@ -3302,7 +3311,9 @@ function initDriveClient(){
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('drive-signin-btn').addEventListener('click', ()=>{
     if(!driveTokenClient){ toast('Google not loaded yet, try again'); return; }
-    driveTokenClient.requestAccessToken({ prompt: 'consent' });
+    // On explicit sign-in, use select_account to let user choose
+    // then we store their hint for future silent logins
+    driveTokenClient.requestAccessToken({ prompt: 'select_account' });
   });
   document.getElementById('drive-signout-btn').addEventListener('click', ()=>{
     driveAccessToken = null;
