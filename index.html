@@ -108,7 +108,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .sca-edit{background:#3a7bd5}
 .sca-delete{background:var(--danger)}
 .sca-btn svg{flex-shrink:0}
-.song-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;cursor:pointer;transition:background var(--t),border-color var(--t);display:flex;align-items:center;gap:11px;position:relative}
+.song-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;cursor:pointer;transition:background var(--t),border-color var(--t);display:flex;align-items:center;gap:11px;position:relative;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .song-card:hover{border-color:var(--accent);background:var(--surface2)}
 .song-card.in-setlist{border-left:3px solid var(--chord)}
 .song-card.selected{border-color:var(--chord);background:rgba(82,183,136,.12)}
@@ -386,13 +386,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 .editor-mode-btn.active{background:var(--surface3);color:var(--accent)}
 
 /* ── VISUAL EDITOR ── */
-.ve-display{
-  font-family:'JetBrains Mono',monospace;font-size:13px;
-  background:var(--surface2);border:1px solid var(--border);border-radius:10px;
-  padding:12px 14px;min-height:200px;max-height:400px;overflow-y:auto;
-  color:var(--text);line-height:1;
-}
-.ve-display:focus-within{border-color:var(--accent)}
+/* ve-display replaced by chart-textarea */
 .ve-section{color:var(--accent);font-weight:700;display:block;margin:10px 0 2px;font-size:12px;letter-spacing:.5px}
 .ve-pair{display:block;margin-bottom:2px}
 .ve-chord-row{display:block;white-space:pre;min-height:1.3em;line-height:1.3;position:relative}
@@ -412,10 +406,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 /* ── CHORD SHORTCUT BAR ── */
 #chord-bar{
-  display:flex;align-items:center;gap:0;
+  display:flex;align-items:center;
   background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);
   padding:6px 8px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;
-  gap:5px;
+  gap:5px;-webkit-overflow-scrolling:touch;touch-action:pan-x;
 }
 #chord-bar::-webkit-scrollbar{display:none}
 .chord-bar-pill{
@@ -429,9 +423,11 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 .chord-bar-search{
   padding:5px 8px;background:var(--surface3);border:1px solid var(--border);
   border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;
-  font-size:12px;outline:none;width:80px;flex-shrink:0;
+  font-size:12px;outline:none;min-width:70px;max-width:70px;flex-shrink:0;
+  -webkit-user-select:text;user-select:text;cursor:text;white-space:nowrap;overflow:hidden;
 }
-.chord-bar-search:focus{border-color:var(--accent);width:110px;transition:width .2s}
+.chord-bar-search:empty::before{content:attr(data-placeholder);color:var(--text3);pointer-events:none}
+.chord-bar-search:focus{border-color:var(--accent);min-width:100px;max-width:100px;transition:min-width .2s,max-width .2s}
 
 /* ── CONTENTEDITABLE INPUTS ── */
 .ce-input{cursor:text;white-space:nowrap;overflow:hidden}
@@ -455,6 +451,9 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 .picker-song-row.selected{background:rgba(82,183,136,.12)}
 .picker-song-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all var(--t)}
 .picker-song-row.selected .picker-song-check{background:var(--chord);border-color:var(--chord);color:#0d0f14}
+
+/* ── CHORD SEARCH HIGHLIGHT ── */
+.chord-bar-pill.search-highlight{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
 
 /* ── MISC ── */
 #chord-tooltip{position:fixed;background:var(--surface2);border:1px solid var(--chord);border-radius:12px;padding:9px 13px;z-index:300;display:none;box-shadow:0 8px 32px rgba(0,0,0,.5);text-align:center}
@@ -592,7 +591,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
     <!-- PAGE 0: LIBRARY -->
     <div id="library-screen" class="main-page">
-      <div id="search-bar"><input id="search-input" type="search" placeholder="Search songs… swipe ← for setlists"></div>
+      <div id="search-bar" style="display:flex;align-items:center;gap:8px">
+        <input id="search-input" type="search" placeholder="Search songs…" style="flex:1">
+        <button id="add-song-btn" style="flex-shrink:0;padding:8px 16px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0d0f14;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;white-space:nowrap">+ Add</button>
+      </div>
       <div class="filter-row">
         <button class="filter-chip active" data-filter="all">All</button>
         <button class="filter-chip" data-filter="worship">Worship</button>
@@ -609,12 +611,13 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
           <div style="position:relative;flex:1">
             <button id="sl-picker-btn">
-              <span id="sl-picker-name">No setlists</span>
+              <span id="sl-picker-name" title="Tap to rename">No setlists</span>
               <span style="font-size:11px;opacity:.6">▾</span>
             </button>
             <div id="sl-picker-dropdown"></div>
           </div>
           <div id="delete-setlist-btn" style="display:none"></div>
+          <button id="add-setlist-fab" style="flex-shrink:0;padding:8px 16px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0d0f14;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;white-space:nowrap">+ New</button>
         </div>
         <!-- Hidden rename field (value still used for editing) -->
         <input id="setlist-name" placeholder="Setlist name…" style="display:none!important">
@@ -629,9 +632,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
   </div>
 
-  <!-- FABs — outside main-swipe so position:fixed works correctly -->
-  <button class="add-song-fab" id="add-song-btn" title="Add song">+</button>
-  <button class="add-song-fab" id="add-setlist-fab" title="New setlist" style="display:none">+</button>
+  <!-- FABs moved inline -->
 
   <!-- Multi-select action bar -->
   <div id="select-bar">
@@ -765,11 +766,14 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <!-- Dummy fields to suppress browser autofill bar -->
     <input style="display:none" type="text" name="prevent_autofill">
     <input style="display:none" type="password" name="prevent_autofill_pw">
-    <!-- TOP BAR: back, title, save -->
-    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
-      <button class="icon-btn" id="modal-cancel">←</button>
-      <span id="modal-title" style="flex:1;font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--accent)">Add Song</span>
-      <button class="btn-primary" id="modal-save" style="padding:8px 18px;font-size:13px">Save</button>
+    <!-- TOP BAR: back (autosave), title, undo, redo, discard, save -->
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button class="icon-btn" id="modal-cancel" title="Save &amp; close">←</button>
+      <span id="modal-title" style="flex:1;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent)">Add Song</span>
+      <button class="icon-btn" id="modal-undo" title="Undo" style="font-size:16px;opacity:.5" disabled>↩</button>
+      <button class="icon-btn" id="modal-redo" title="Redo" style="font-size:16px;opacity:.5" disabled>↪</button>
+      <button class="icon-btn" id="modal-discard" title="Discard changes" style="color:var(--danger);display:none">✕</button>
+      <button class="btn-primary" id="modal-save" style="padding:8px 16px;font-size:13px">Save</button>
     </div>
 
     <!-- CHORD SHORTCUT BAR — always visible, flex-shrink:0 -->
@@ -804,10 +808,12 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
         </div>
       </div>
 
-      <!-- Editor fills ALL remaining space and scrolls internally -->
-      <div id="ve-display" class="ve-display" style="flex:1;max-height:none;border-radius:0;border-left:none;border-right:none;border-bottom:none;overflow-y:auto;-webkit-user-select:text;user-select:text"></div>
-      <textarea id="form-lyrics" spellcheck="false"
-        style="display:none;flex:1;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;background:var(--surface2);border:none;color:var(--text);padding:12px 14px;outline:none;resize:none;overflow-y:auto;-webkit-user-select:text;user-select:text"></textarea>
+      <!-- Chords over Lyrics (chart mode) -->
+      <textarea id="chart-textarea" spellcheck="false" autocorrect="off" autocapitalize="off"
+        style="flex:1;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;background:var(--surface2);border:none;color:var(--text);padding:12px 14px;outline:none;resize:none;overflow-y:auto;-webkit-user-select:text;user-select:text"></textarea>
+      <!-- Raw ChordPro textarea -->
+      <textarea id="form-lyrics" spellcheck="false" autocorrect="off" autocapitalize="off"
+        style="display:none;flex:1;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;background:var(--surface2);border:none;color:var(--text);padding:12px 14px;outline:none;resize:none;overflow-y:auto;-webkit-user-select:text;user-select:text"></textarea>
     </div>
 
     <!-- Hidden elements kept for JS compatibility -->
@@ -1127,16 +1133,25 @@ function openSong(id, context){
   currentSong=songs.find(s=>s.id===id);if(!currentSong)return;
   setlistContext=context||null;
   currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;showChords=true;
-  // Load this song's saved scroll speed, or fall back to the global default
   scrollSpeed = currentSong.scrollSpeed ?? defaultScrollSpeed;
   updatePillSpeed();
   document.getElementById('toggle-chords-btn').classList.remove('active');
   document.getElementById('toggle-chords-btn').textContent='♪ Chords';
+  const tip = document.getElementById('chord-tooltip');
+  if(tip){ tip.style.display='none'; delete tip.dataset.chord; delete tip.dataset.mode; }
   renderSongView();
   switchTab('song-view-screen',false);
   document.getElementById('scroll-handle').classList.add('song-open');
   showHeader(false);
   updateSwipeIndicator();
+  // Absorb the pending click/touchend that will fire after the library card tap,
+  // before it can reach a chord span and trigger the tooltip.
+  const lyricsEl = document.getElementById('song-lyrics');
+  if(lyricsEl){
+    const absorb = e => { e.stopPropagation(); e.preventDefault(); };
+    lyricsEl.addEventListener('click',   absorb, {capture:true, once:true});
+    lyricsEl.addEventListener('touchend',absorb, {capture:true, once:true, passive:false});
+  }
 }
 
 function currentSetlistPosition(){
@@ -1532,67 +1547,43 @@ function renderLibrary(){
 
   list.querySelectorAll('.song-card').forEach(card=>{
     const id = card.dataset.id;
-    let sx=0, sy=0, tracking=false, lockedH=null, swipeDir=null;
-    const THRESHOLD = 70;
-
-    function snapBack(){
-      card.style.transition='transform .2s ease';
-      card.style.transform='translateX(0)';
-      card.closest('.song-card-wrap').querySelector('.song-card-select-bg').style.opacity='0';
-    }
+    let t0=0, x0=0, y0=0, moved=false, pressTimer=null, didLongPress=false;
 
     card.addEventListener('touchstart', e=>{
-      sx=e.touches[0].clientX; sy=e.touches[0].clientY;
-      tracking=true; lockedH=null; swipeDir=null;
-      card.style.transition='none';
+      const t = e.touches[0];
+      x0=t.clientX; y0=t.clientY; t0=Date.now();
+      moved=false; didLongPress=false;
+      pressTimer = setTimeout(()=>{
+        if(!moved){
+          didLongPress=true;
+          if(navigator.vibrate) navigator.vibrate(40);
+          toggleSelect(id);
+        }
+      }, 500);
     },{passive:true});
 
     card.addEventListener('touchmove', e=>{
-      if(!tracking) return;
-      const dx=e.touches[0].clientX-sx, dy=e.touches[0].clientY-sy;
-      if(lockedH===null){
-        if(Math.abs(dx)<8&&Math.abs(dy)<8) return;
-        lockedH=Math.abs(dx)>=Math.abs(dy);
-        swipeDir=dx>=0?'right':'left';
+      const t=e.touches[0];
+      if(Math.abs(t.clientX-x0)>8 || Math.abs(t.clientY-y0)>8){
+        moved=true;
+        clearTimeout(pressTimer);
       }
-      if(!lockedH) return;
-      e.stopPropagation(); e.preventDefault();
-      if(swipeDir==='right'){
-        const clamped=Math.max(0,Math.min(dx,THRESHOLD+20));
-        card.style.transform=`translateX(${clamped}px)`;
-        card.closest('.song-card-wrap').querySelector('.song-card-select-bg').style.opacity=Math.min(clamped/THRESHOLD,1);
-      } else if(swipeDir==='left' && selectedSongs.has(id)){
-        // Only left-swipe works on selected songs to deselect
-        const clamped=Math.max(-THRESHOLD-20,Math.min(dx,0));
-        card.style.transform=`translateX(${clamped}px)`;
-      }
-    },{passive:false});
+    },{passive:true});
 
     card.addEventListener('touchend', e=>{
-      if(!tracking) return; tracking=false;
-      const dx=e.changedTouches[0].clientX-sx;
-      if(swipeDir==='right' && dx>=THRESHOLD){
-        snapBack();
-        toggleSelect(id); // right swipe always selects
-      } else if(swipeDir==='left' && selectedSongs.has(id) && dx<=-THRESHOLD){
-        snapBack();
-        toggleSelect(id); // left swipe on selected = deselect
-      } else if(!lockedH || (lockedH && Math.abs(dx)<10)){
-        // Pure tap
-        snapBack();
-        if(selectedSongs.size>0) toggleSelect(id); // in selection mode — tap toggles
-        else openSong(id); // normal mode — tap opens
-      } else {
-        snapBack();
-      }
-    },{passive:false});
-
-    card.addEventListener('touchcancel',()=>{ tracking=false; snapBack(); });
-    // Desktop click fallback
-    card.addEventListener('click', ()=>{
+      clearTimeout(pressTimer);
+      if(moved) return;       // was a scroll
+      if(didLongPress) return; // long press already handled
+      if(Date.now()-t0 > 600) return; // too long — treat as long press that timed out
+      // Genuine short tap
       if(selectedSongs.size>0) toggleSelect(id);
       else openSong(id);
-    });
+    },{passive:true});
+
+    card.addEventListener('touchcancel', ()=>{
+      clearTimeout(pressTimer);
+      moved=true;
+    },{passive:true});
   });
 }
 document.getElementById('search-input').addEventListener('input',renderLibrary);
@@ -1832,6 +1823,41 @@ function addRecent(chord){recentChords=[chord,...recentChords.filter(c=>c!==chor
 
 let pinnedChords = []; // chords pinned to bar via search+Enter
 
+function wirePill(btn){
+  // Track touch movement to distinguish tap from swipe/scroll
+  let pillTouchStartX = 0, pillTouchStartY = 0, pillMoved = false;
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('touchstart', e => {
+    pillTouchStartX = e.touches[0].clientX;
+    pillTouchStartY = e.touches[0].clientY;
+    pillMoved = false;
+    // Don't preventDefault here — allows bar to scroll naturally
+  }, {passive:true});
+  btn.addEventListener('touchmove', e => {
+    const dx = Math.abs(e.touches[0].clientX - pillTouchStartX);
+    const dy = Math.abs(e.touches[0].clientY - pillTouchStartY);
+    if(dx > 8 || dy > 8) pillMoved = true;
+  }, {passive:true});
+  btn.addEventListener('touchend', e => {
+    if(pillMoved) return; // was a scroll — ignore
+    e.preventDefault(); // prevent ghost click
+    if(e.target.classList.contains('pin-x')){
+      pinnedChords.splice(parseInt(e.target.dataset.pinnedIdx), 1);
+      renderChordBar();
+      return;
+    }
+    const chord = btn.dataset.chord;
+    if(chord) insertChord(chord);
+  }, {passive:false});
+  btn.addEventListener('click', e => {
+    if(e.target.classList.contains('pin-x')){
+      pinnedChords.splice(parseInt(e.target.dataset.pinnedIdx), 1);
+      renderChordBar(); return;
+    }
+    if(btn.dataset.chord) insertChord(btn.dataset.chord);
+  });
+}
+
 function renderChordBar(){
   const bar = document.getElementById('chord-bar');
   if(!bar) return;
@@ -1840,90 +1866,109 @@ function renderChordBar(){
   const recent = recentChords.slice(0,6);
 
   let html = '';
-  // Search input
-  html += '<input class="chord-bar-search" id="chord-bar-search" placeholder="chord…" autocomplete="off" autocorrect="off" spellcheck="false">';
-  // Pinned chords (from search+Enter) with × to remove
+  html += '<div class="chord-bar-search" id="chord-bar-search" contenteditable="true" spellcheck="false" data-placeholder="chord…" role="textbox" inputmode="text"></div>';
   pinnedChords.forEach((c,i) => {
     html += `<button class="chord-bar-pill pinned" data-chord="${esc(c)}" data-pinned-idx="${i}">${esc(c)}<span class="pin-x" data-pinned-idx="${i}">×</span></button>`;
   });
   if(pinnedChords.length) html += '<div class="chord-bar-sep"></div>';
-  // Recent chords
   if(recent.length){
     recent.forEach(c => { html += `<button class="chord-bar-pill" data-chord="${esc(c)}">${esc(c)}</button>`; });
     html += '<div class="chord-bar-sep"></div>';
   }
-  // Diatonic chords for key
   diatonic.forEach(c => { html += `<button class="chord-bar-pill" data-chord="${esc(c)}">${esc(c)}</button>`; });
 
   bar.innerHTML = html;
+  bar.querySelectorAll('.chord-bar-pill').forEach(wirePill);
 
-  // Wire all insert pills
-  bar.querySelectorAll('.chord-bar-pill').forEach(btn => {
-    // Prevent focus steal — keeps keyboard open
-    btn.addEventListener('mousedown', e => e.preventDefault());
-    // Use touchend for insert so preventDefault on touchstart doesn't block it
-    btn.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
-    btn.addEventListener('touchend', e => {
-      e.preventDefault();
-      if(e.target.classList.contains('pin-x')){
-        pinnedChords.splice(parseInt(e.target.dataset.pinnedIdx), 1);
-        renderChordBar();
-        return;
-      }
-      insertChord(btn.dataset.chord);
-    }, {passive:false});
-    // Mouse click fallback (desktop)
-    btn.addEventListener('click', e => {
-      if(e.target.classList.contains('pin-x')){
-        pinnedChords.splice(parseInt(e.target.dataset.pinnedIdx), 1);
-        renderChordBar();
-        return;
-      }
-      insertChord(btn.dataset.chord);
-    });
-  });
-
-  // Search
+  // Search wiring
   const searchEl = document.getElementById('chord-bar-search');
   if(!searchEl) return;
   let currentMatches = [];
 
-  searchEl.addEventListener('input', function(){
-    const q = this.value.trim().toLowerCase();
-    bar.querySelectorAll('.chord-bar-pill.search-result').forEach(el=>el.remove());
+  // Highlight matching pills already in the bar when searching
+  // Remove search result pills and deselect highlights
+  function clearSearchHighlights(){
+    bar.querySelectorAll('.chord-bar-pill.search-highlight').forEach(p => p.classList.remove('search-highlight'));
+    bar.querySelectorAll('.chord-bar-pill.search-result').forEach(el => el.remove());
     currentMatches = [];
-    if(q.length >= 1){
-      currentMatches = ALL_CHORDS.filter(c=>c.toLowerCase().startsWith(q)).slice(0,8);
-      currentMatches.forEach(c=>{
-        const btn = document.createElement('button');
-        btn.className = 'chord-bar-pill search-result';
-        btn.dataset.chord = c;
-        btn.textContent = c;
-        btn.addEventListener('mousedown', e => e.preventDefault());
-        btn.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
-        btn.addEventListener('touchend', e => { e.preventDefault(); insertChord(c); }, {passive:false});
-        btn.addEventListener('click', ()=>insertChord(c));
-        searchEl.insertAdjacentElement('afterend', btn);
-      });
-    }
+  }
+
+  searchEl.addEventListener('input', function(){
+    clearSearchHighlights();
+    const q = (this.innerText||'').trim().toLowerCase();
+    if(!q) return;
+    currentMatches = ALL_CHORDS.filter(c=>c.toLowerCase().startsWith(q)).slice(0,10);
+    // Highlight any existing pills in the bar that match
+    bar.querySelectorAll('.chord-bar-pill:not(.search-result)').forEach(p => {
+      if(p.dataset.chord && p.dataset.chord.toLowerCase().startsWith(q)){
+        p.classList.add('search-highlight');
+      }
+    });
+    // Add search-result pills for matches not already in bar
+    const barChords = new Set([...bar.querySelectorAll('.chord-bar-pill')].map(p=>p.dataset.chord));
+    currentMatches.filter(c=>!barChords.has(c)).forEach(c=>{
+      const btn = document.createElement('button');
+      btn.className = 'chord-bar-pill search-result';
+      btn.dataset.chord = c;
+      btn.textContent = c;
+      wirePill(btn);
+      searchEl.insertAdjacentElement('afterend', btn);
+    });
+  });
+
+  // Tapping outside search box deselects highlights
+  searchEl.addEventListener('blur', ()=>{
+    // Small delay so pill tap fires first
+    setTimeout(clearSearchHighlights, 150);
   });
 
   searchEl.addEventListener('keydown', e=>{
     e.stopPropagation();
     if(e.key === 'Enter' || e.key === 'Go'){
       e.preventDefault();
-      const q = searchEl.value.trim();
+      const q = (searchEl.innerText||'').trim();
       if(!q) return;
-      // Pin the first match or exact input as a chord
       const match = ALL_CHORDS.find(c=>c.toLowerCase()===q.toLowerCase()) || currentMatches[0] || q;
-      if(match && !pinnedChords.includes(match)){
-        pinnedChords.unshift(match);
+      if(!match) return;
+
+      // Check if chord already exists anywhere in the bar
+      const existingPill = [...bar.querySelectorAll('.chord-bar-pill')].find(
+        p => p.dataset.chord && p.dataset.chord.toLowerCase() === match.toLowerCase()
+      );
+
+      searchEl.innerText = '';
+      clearSearchHighlights();
+
+      if(existingPill){
+        // Already in bar — just highlight it and scroll to it
+        existingPill.classList.add('search-highlight');
+        existingPill.scrollIntoView({behavior:'smooth', block:'nearest', inline:'nearest'});
+        setTimeout(()=>existingPill.classList.remove('search-highlight'), 1500);
+      } else {
+        // Not in bar — pin it
+        if(!pinnedChords.includes(match)) pinnedChords.unshift(match);
+        // Rebuild pinned section inline
+        bar.querySelectorAll('.chord-bar-pill.pinned, .chord-bar-sep.pinned-sep').forEach(el=>el.remove());
+        const firstNonSearch = bar.querySelector('.chord-bar-pill:not(.pinned):not(.search-result), .chord-bar-sep:not(.pinned-sep)');
+        pinnedChords.slice().reverse().forEach(c => {
+          const i = pinnedChords.indexOf(c);
+          const btn = document.createElement('button');
+          btn.className = 'chord-bar-pill pinned';
+          btn.dataset.chord = c;
+          btn.dataset.pinnedIdx = i;
+          btn.innerHTML = esc(c) + '<span class="pin-x" data-pinned-idx="' + i + '">×</span>';
+          wirePill(btn);
+          if(firstNonSearch) bar.insertBefore(btn, firstNonSearch);
+          else bar.appendChild(btn);
+        });
+        if(pinnedChords.length){
+          const sep = document.createElement('div');
+          sep.className = 'chord-bar-sep pinned-sep';
+          if(firstNonSearch) bar.insertBefore(sep, firstNonSearch);
+          else bar.appendChild(sep);
+        }
       }
-      searchEl.value = '';
-      bar.querySelectorAll('.chord-bar-pill.search-result').forEach(el=>el.remove());
-      renderChordBar();
-      // Re-focus search
-      setTimeout(()=>{ const s=document.getElementById('chord-bar-search'); if(s)s.focus(); },50);
+      searchEl.focus();
     }
   });
 }
@@ -1984,435 +2029,362 @@ function openModal(editId){
   const vp = window.visualViewport;
   overlay.style.height = (vp ? vp.height : window.innerHeight) + 'px';
   document.body.style.overflow = 'hidden';
-  editorMode='chordpro';
   setEditorMode('chart');
+  // Init undo/redo
+  const ct = document.getElementById('chart-textarea');
+  editorOriginalLyrics = ct.value;
+  editorHistory = [{lyrics: ct.value, mode: 'chart'}];
+  editorHistoryIdx = 0;
+  editorDirty = false;
+  updateEditorUndoRedo();
+  // Wire snapshot on textarea changes
+  ct.addEventListener('input', editorSnapshot);
+  document.getElementById('form-lyrics').addEventListener('input', editorSnapshot);
   setTimeout(()=>document.getElementById('form-title').focus(),300);
 }
+// ── EDITOR UNDO/REDO STATE ──
+let editorHistory = [];    // array of {lyrics, mode} snapshots
+let editorHistoryIdx = -1; // current position in history
+let editorOriginalLyrics = ''; // lyrics when modal opened (for discard)
+let editorDirty = false;
+
+function editorSnapshot(){
+  const ct = document.getElementById('chart-textarea');
+  const ta = document.getElementById('form-lyrics');
+  const lyrics = editorMode === 'chart' ? ct.value : ta.value;
+  // Truncate forward history
+  editorHistory = editorHistory.slice(0, editorHistoryIdx + 1);
+  // Only push if different from last snapshot
+  if(editorHistory.length === 0 || editorHistory[editorHistoryIdx].lyrics !== lyrics){
+    editorHistory.push({lyrics, mode: editorMode});
+    editorHistoryIdx = editorHistory.length - 1;
+  }
+  editorDirty = lyrics !== editorOriginalLyrics;
+  updateEditorUndoRedo();
+}
+
+function updateEditorUndoRedo(){
+  const undoBtn = document.getElementById('modal-undo');
+  const redoBtn = document.getElementById('modal-redo');
+  const discardBtn = document.getElementById('modal-discard');
+  if(undoBtn){ undoBtn.disabled = editorHistoryIdx <= 0; undoBtn.style.opacity = editorHistoryIdx > 0 ? '1' : '.35'; }
+  if(redoBtn){ redoBtn.disabled = editorHistoryIdx >= editorHistory.length-1; redoBtn.style.opacity = editorHistoryIdx < editorHistory.length-1 ? '1' : '.35'; }
+  if(discardBtn) discardBtn.style.display = editorDirty ? '' : 'none';
+}
+
+function editorUndo(){
+  if(editorHistoryIdx <= 0) return;
+  editorHistoryIdx--;
+  applyEditorSnapshot(editorHistory[editorHistoryIdx]);
+}
+
+function editorRedo(){
+  if(editorHistoryIdx >= editorHistory.length - 1) return;
+  editorHistoryIdx++;
+  applyEditorSnapshot(editorHistory[editorHistoryIdx]);
+}
+
+function applyEditorSnapshot(snap){
+  const ct = document.getElementById('chart-textarea');
+  const ta = document.getElementById('form-lyrics');
+  if(snap.mode === 'chart'){
+    ct.value = snap.lyrics;
+    if(editorMode !== 'chart'){
+      // Switch to chart mode without re-converting (already in chart format)
+      editorMode = 'chart';
+      ct.style.display = ''; ta.style.display = 'none';
+      document.getElementById('mode-chart').classList.add('active');
+      document.getElementById('mode-chordpro').classList.remove('active');
+    }
+  } else {
+    ta.value = snap.lyrics;
+    if(editorMode !== 'chordpro'){
+      editorMode = 'chordpro';
+      ta.style.display = ''; ct.style.display = 'none';
+      document.getElementById('mode-chart').classList.remove('active');
+      document.getElementById('mode-chordpro').classList.add('active');
+    }
+  }
+  editorDirty = snap.lyrics !== editorOriginalLyrics;
+  updateEditorUndoRedo();
+}
+
+function getCurrentLyrics(){
+  const ct = document.getElementById('chart-textarea');
+  const ta = document.getElementById('form-lyrics');
+  return editorMode === 'chart'
+    ? chartToChordPro(ct.value)
+    : ta.value;
+}
+
 function closeModal(){
   document.getElementById('modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
   editingId=null;
+  editorHistory=[];
+  editorHistoryIdx=-1;
+  editorDirty=false;
 }
-// ===== VISUAL EDITOR =====
-let editorMode = 'chart';
-let veSelectedLine = null; // index of selected lyric line in current parse
+// ===== CHART ↔ CHORDPRO CONVERSION =====
 
-// Parse ChordPro into an array of display blocks
-function veParseChordPro(raw){
-  const blocks = [];
+// ChordPro → Chords-over-Lyrics chart text
+function chordProToChart(raw){
   const lines = raw.split('\n');
+  const out = [];
+  for(const line of lines){
+    // Pass through directives unchanged
+    if(/^\{[a-z].*\}/i.test(line) && !line.includes('[')){
+      out.push(line);
+      continue;
+    }
+    // Blank line
+    if(!line.trim()){ out.push(''); continue; }
+    // Does this line have chords?
+    if(!line.includes('[')){
+      out.push(line);
+      continue;
+    }
+    // Build chord line and lyric line
+    let chordLine = '';
+    let lyricLine = '';
+    let i = 0;
+    while(i < line.length){
+      if(line[i] === '['){
+        const end = line.indexOf(']', i);
+        if(end === -1){ lyricLine += line[i++]; continue; }
+        const chord = line.slice(i+1, end);
+        // Pad chord line to current lyric position
+        while(chordLine.length < lyricLine.length) chordLine += ' ';
+        chordLine += chord;
+        i = end + 1;
+      } else {
+        lyricLine += line[i++];
+        // If chord line is longer than lyric, pad lyric
+        // (handled implicitly — lyric just lags behind)
+      }
+    }
+    // Only output chord line if it has content
+    if(chordLine.trim()){
+      out.push(chordLine);
+    }
+    out.push(lyricLine);
+  }
+  return out.join('\n');
+}
+
+// Chords-over-Lyrics chart text → ChordPro
+function chartToChordPro(chart){
+  const lines = chart.split('\n');
+  const out = [];
   let i = 0;
   while(i < lines.length){
     const line = lines[i];
-    // Section
-    const sec = line.match(/^\{c(?:omment)?:(.*)\}$/i);
-    if(sec){ blocks.push({type:'section', label:sec[1].trim(), srcLine:i}); i++; continue; }
+    // Pass through directives
+    if(/^\{[a-z].*\}/i.test(line)){
+      out.push(line); i++; continue;
+    }
     // Blank
-    if(!line.trim()){ blocks.push({type:'blank', srcLine:i}); i++; continue; }
-    // Parse chords from ChordPro inline format
-    const chords = []; // [{chord, pos}] where pos = character index in lyric
-    const lyric = line.replace(/\[([^\]]+)\]/g, (m, c, offset) => {
-      // offset in original line, need to calculate lyric position
-      return m;
-    });
-    // Build lyric and chord positions properly
-    let lyricText = '';
-    let srcPos = 0;
-    const chordRe = /\[([^\]]+)\]/g;
-    let match;
-    let lastEnd = 0;
-    chordRe.lastIndex = 0;
-    while((match = chordRe.exec(line)) !== null){
-      lyricText += line.slice(lastEnd, match.index);
-      chords.push({chord: match[1], lyricPos: lyricText.length});
-      lastEnd = match.index + match[0].length;
-    }
-    lyricText += line.slice(lastEnd);
-    blocks.push({type:'line', lyric:lyricText, chords, srcLine:i});
-    i++;
-  }
-  return blocks;
-}
+    if(!line.trim()){ out.push(''); i++; continue; }
+    // Is this a chord line? (contains only chord-like tokens and spaces)
+    // A chord line: no lowercase letters, contains at least one chord pattern
+    const isChordLine = /^[\sA-G][^\p{Ll}]*$/.test(line) &&
+      /[A-G](?:#|b)?(?:m|maj|min|aug|dim|sus|add)?[0-9]?/.test(line) &&
+      !/[a-z]{3,}/.test(line); // no word longer than 2 lowercase = not lyrics
 
-// Build the chord line string for display above a lyric
-function veBuildChordLine(lyricText, chords){
-  let row = '';
-  for(const {chord, lyricPos} of chords){
-    while(row.length < lyricPos) row += ' ';
-    row += chord;
-    if(row.length < lyricPos + 1) row += ' ';
-  }
-  return row;
-}
-
-// Active chord being edited {srcLine, chordIdx}
-let veActiveChord = null;
-
-// Re-render the visual editor from the hidden textarea
-function veRender(){
-  const raw = document.getElementById('form-lyrics').value;
-  const display = document.getElementById('ve-display');
-  if(!display) return;
-  const blocks = veParseChordPro(raw);
-  let html = '';
-  let lyricLineIdx = 0;
-  for(const block of blocks){
-    if(block.type === 'section'){
-      html += `<span class="ve-section">\u2014 ${esc(block.label)} \u2014</span>`;
-    } else if(block.type === 'blank'){
-      // Make blank lines editable so backspace can delete them
-      html += `<span class="ve-blank-line" contenteditable="true" spellcheck="false" data-src-line="${block.srcLine}" style="display:block;min-height:1em;-webkit-user-select:text;user-select:text;font-family:'JetBrains Mono',monospace;outline:none"></span>`;
-    } else if(block.type === 'line'){
-      // Build lyric line with monospace spacing
-      const lyricText = block.lyric;
-      const isSelected = lyricLineIdx === veSelectedLine;
-      html += `<span class="ve-pair" data-lyric-idx="${lyricLineIdx}" data-src-line="${block.srcLine}">`;
-      // Chord row: each chord is a positioned absolute span, container is relative
-      // Height = 1.3em to match chord row height
-      html += `<span class="ve-chord-row" style="height:1.3em;display:block;position:relative">`;
-      for(let ci = 0; ci < block.chords.length; ci++){
-        const {chord, lyricPos} = block.chords[ci];
-        const isActive = veActiveChord &&
-          veActiveChord.srcLine === block.srcLine &&
-          veActiveChord.chordIdx === ci;
-        // Convert lyric position to approximate em offset (1 char ≈ 1ch in monospace)
-        html += `<span class="ve-chord-span${isActive?' ve-chord-active':''}"
-          style="left:${lyricPos}ch"
-          data-src-line="${block.srcLine}"
-          data-chord-idx="${ci}"
-          data-chord="${esc(chord)}">${esc(chord)}`;
-        if(isActive){
-          html += `<span class="ve-chord-actions">
-            <button class="ve-chord-tick" data-src-line="${block.srcLine}" data-chord-idx="${ci}" title="Remove chord">✓ remove</button>
-          </span>`;
-        }
-        html += `</span>`;
-      }
-      html += `</span>`;
-      // Lyric row
-      html += `<span class="ve-lyric-row${isSelected?' ve-selected':''}" contenteditable="true" spellcheck="false" data-lyric-idx="${lyricLineIdx}" data-src-line="${block.srcLine}" style="display:block;font-family:'JetBrains Mono',monospace">${esc(lyricText)}</span>`;
-      html += `</span>`;
-      lyricLineIdx++;
-    }
-  }
-  html += `<span class="ve-hint">Tap a word, then tap a chord to place it. Tap a chord to remove it.</span>`;
-  display.innerHTML = html;
-
-  // Wire chord span taps
-  display.querySelectorAll('.ve-chord-span').forEach(span => {
-    span.addEventListener('mousedown', e => e.preventDefault());
-    span.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
-    span.addEventListener('touchend', e => {
-      e.preventDefault(); e.stopPropagation();
-      const srcLine = parseInt(span.dataset.srcLine);
-      const chordIdx = parseInt(span.dataset.chordIdx);
-      if(veActiveChord && veActiveChord.srcLine===srcLine && veActiveChord.chordIdx===chordIdx){
-        veActiveChord = null;
-      } else {
-        veActiveChord = {srcLine, chordIdx};
-      }
-      const savedSelected = veSelectedLine;
-      veRender();
-      veSelectedLine = savedSelected;
-      // Restore focus to selected lyric row
-      const rows = display.querySelectorAll('.ve-lyric-row');
-      if(savedSelected !== null && rows[savedSelected]) rows[savedSelected].focus();
-    }, {passive:false});
-    span.addEventListener('click', e => e.stopPropagation());
-  });
-
-  // Tick = delete the chord
-  display.querySelectorAll('.ve-chord-tick').forEach(btn => {
-    btn.addEventListener('mousedown', e => e.preventDefault());
-    btn.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
-    btn.addEventListener('touchend', e => {
-      e.preventDefault(); e.stopPropagation();
-      veDeleteChord(parseInt(btn.dataset.srcLine), parseInt(btn.dataset.chordIdx));
-    }, {passive:false});
-    btn.addEventListener('click', e => e.stopPropagation());
-  });
-
-  // Wire lyric row events
-  display.querySelectorAll('.ve-lyric-row').forEach(row => {
-    row.addEventListener('focus', () => {
-      veSelectedLine = parseInt(row.dataset.lyricIdx);
-      veActiveChord = null;
-      display.querySelectorAll('.ve-lyric-row').forEach(r => r.classList.toggle('ve-selected', r === row));
-    });
-    row.addEventListener('input', () => { veSaveLyricEdit(row); });
-    row.addEventListener('blur',  () => { veSaveLyricEdit(row); });
-
-    // Handle backspace on empty line — delete the line from ChordPro
-    row.addEventListener('keydown', e => {
-      if(e.key === 'Backspace' || e.key === 'Delete'){
-        const text = row.innerText.trim();
-        if(text === ''){
-          e.preventDefault();
-          const srcLine = parseInt(row.dataset.srcLine);
-          const ta = document.getElementById('form-lyrics');
-          const lines = ta.value.split('\n');
-          if(lines.length <= 1) return;
-          lines.splice(srcLine, 1);
-          ta.value = lines.join('\n');
-          // Move focus to previous line if possible
-          const newSelected = Math.max(0, veSelectedLine - 1);
-          veSelectedLine = newSelected;
-          veRender();
-          const rows2 = display.querySelectorAll('.ve-lyric-row');
-          if(rows2[newSelected]) rows2[newSelected].focus();
+    if(isChordLine && i + 1 < lines.length && lines[i+1].trim() !== '' && !/^\{/.test(lines[i+1])){
+      // Next line is the lyric line
+      const chordLine = line;
+      const lyricLine = lines[i+1];
+      // Parse chord positions from chord line
+      const chords = [];
+      let ci = 0;
+      while(ci < chordLine.length){
+        if(chordLine[ci] !== ' '){
+          // Read chord token
+          const start = ci;
+          while(ci < chordLine.length && chordLine[ci] !== ' ') ci++;
+          chords.push({chord: chordLine.slice(start, ci), pos: start});
+        } else {
+          ci++;
         }
       }
-      // Enter key — insert new blank line after current
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        const srcLine = parseInt(row.dataset.srcLine);
-        const ta = document.getElementById('form-lyrics');
-        const lines = ta.value.split('\n');
-        lines.splice(srcLine + 1, 0, '');
-        ta.value = lines.join('\n');
-        const savedIdx = veSelectedLine;
-        veRender();
-        // Move to new line
-        const rows2 = display.querySelectorAll('.ve-lyric-row');
-        if(rows2[savedIdx + 1]) rows2[savedIdx + 1].focus();
+      // Build ChordPro line — insert [chord] at positions in lyric
+      let result = '';
+      let lyricPos = 0;
+      let chordIdx = 0;
+      // Walk through lyric, inserting chords at the right positions
+      const lyricArr = lyricLine.split('');
+      // Pad lyric if shorter than some chord positions
+      const maxPos = chords.length ? chords[chords.length-1].pos : 0;
+      while(lyricArr.length <= maxPos) lyricArr.push(' ');
+
+      for(let lp = 0; lp <= lyricArr.length; lp++){
+        // Insert any chords at this position
+        while(chordIdx < chords.length && chords[chordIdx].pos === lp){
+          result += '[' + chords[chordIdx].chord + ']';
+          chordIdx++;
+        }
+        if(lp < lyricArr.length) result += lyricArr[lp];
       }
-    });
-  });
-
-  // Wire blank line events — backspace deletes the blank line
-  display.querySelectorAll('.ve-blank-line').forEach(blank => {
-    blank.addEventListener('keydown', e => {
-      if(e.key === 'Backspace' || e.key === 'Delete'){
-        e.preventDefault();
-        const srcLine = parseInt(blank.dataset.srcLine);
-        const ta = document.getElementById('form-lyrics');
-        const lines = ta.value.split('\n');
-        lines.splice(srcLine, 1);
-        ta.value = lines.join('\n');
-        veSelectedLine = Math.max(0, veSelectedLine - 1);
-        veRender();
-      }
-    });
-    blank.addEventListener('focus', () => { veActiveChord = null; });
-  });
-
-  // Tap on non-lyric areas: keep keyboard by refocusing current/nearest lyric row
-  // Single touchstart handler — chord dismiss takes priority over refocus
-  display.addEventListener('touchstart', e => {
-    const onChordSpan = e.target.closest('.ve-chord-span');
-    const onChordTick = e.target.closest('.ve-chord-tick');
-    const onLyricRow  = e.target.closest('.ve-lyric-row');
-    const onBlankLine = e.target.closest('.ve-blank-line');
-
-    // If chord popup is open and tap is outside it — dismiss it first
-    if(veActiveChord && !onChordSpan && !onChordTick){
-      e.preventDefault();
-      veActiveChord = null;
-      const savedSelected = veSelectedLine;
-      veRender();
-      veSelectedLine = savedSelected;
-      const rows = display.querySelectorAll('.ve-lyric-row');
-      if(savedSelected !== null && rows[savedSelected]) rows[savedSelected].focus();
-      return; // don't do anything else this tap
+      // Trim trailing spaces added for padding
+      out.push(result.trimEnd());
+      i += 2; // consumed both lines
+    } else {
+      // Not a chord+lyric pair — output as-is
+      out.push(line);
+      i++;
     }
-
-    // Tapping lyric row or blank line — let native focus handle it
-    if(onLyricRow || onBlankLine || onChordSpan) return;
-
-    // Tapping elsewhere (chord row gap, section header etc) — focus nearest lyric row
-    e.preventDefault();
-    const rows = display.querySelectorAll('.ve-lyric-row');
-    if(!rows.length) return;
-    const touchY = e.touches[0].clientY;
-    let nearest = rows[0];
-    let minDist = Infinity;
-    rows.forEach(row => {
-      const rect = row.getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if(Math.abs(touchY - mid) < minDist){ minDist = Math.abs(touchY - mid); nearest = row; }
-    });
-    nearest.focus();
-    veSelectedLine = parseInt(nearest.dataset.lyricIdx);
-    display.querySelectorAll('.ve-lyric-row').forEach(r => r.classList.toggle('ve-selected', r === nearest));
-  }, {passive:false});
+  }
+  return out.join('\n');
 }
 
-// Delete a chord from a line
-function veDeleteChord(srcLine, chordIdx){
-  const ta = document.getElementById('form-lyrics');
-  const lines = ta.value.split('\n');
-  if(srcLine >= lines.length) return;
-  const line = lines[srcLine];
-  // Find and remove the nth [chord] from the line
-  let count = 0;
-  const result = line.replace(/\[([^\]]+)\]/g, (m) => {
-    if(count === chordIdx){ count++; return ''; }
-    count++;
-    return m;
-  });
-  lines[srcLine] = result;
-  ta.value = lines.join('\n');
-  veActiveChord = null;
-  const savedSelected = veSelectedLine;
-  veRender();
-  veSelectedLine = savedSelected;
-}
+// ===== EDITOR MODE =====
+let editorMode = 'chart';
 
-// Save an edited lyric line back to ChordPro
-function veSaveLyricEdit(row){
-  const srcLine = parseInt(row.dataset.srcLine);
-  const ta = document.getElementById('form-lyrics');
-  const lines = ta.value.split('\n');
-  if(srcLine >= lines.length) return;
-  // Get current chords from the existing ChordPro line
-  const existing = lines[srcLine];
-  const chords = [];
-  const chordRe = /\[([^\]]+)\]/g;
-  let match;
-  let lyricText = '';
-  let lastEnd = 0;
-  chordRe.lastIndex = 0;
-  while((match = chordRe.exec(existing)) !== null){
-    lyricText += existing.slice(lastEnd, match.index);
-    chords.push({chord: match[1], lyricPos: lyricText.length});
-    lastEnd = match.index + match[0].length;
-  }
-  // Rebuild with new lyric text but same chord positions
-  const newLyric = row.innerText;
-  let result = '';
-  let lastPos = 0;
-  for(const {chord, lyricPos} of chords){
-    const insertAt = Math.min(lyricPos, newLyric.length);
-    result += newLyric.slice(lastPos, insertAt) + '[' + chord + ']';
-    lastPos = insertAt;
-  }
-  result += newLyric.slice(lastPos);
-  lines[srcLine] = result;
-  ta.value = lines.join('\n');
-}
-
-// Insert a chord at the cursor position within the selected lyric line
-function veInsertChord(chord){
-  const display = document.getElementById('ve-display');
-  if(!display) return;
-  // Find the focused/selected lyric row
-  const selectedRow = display.querySelector('.ve-lyric-row.ve-selected') ||
-                      display.querySelector('.ve-lyric-row:focus');
-  if(!selectedRow){
-    toast('Tap a lyric line first, then tap a chord');
-    return;
-  }
-  const srcLine = parseInt(selectedRow.dataset.srcLine);
-  const ta = document.getElementById('form-lyrics');
-  const lines = ta.value.split('\n');
-  if(srcLine >= lines.length) return;
-
-  // Get cursor position within the lyric text
-  const sel = window.getSelection();
-  let cursorPos = 0;
-  if(sel && sel.rangeCount > 0 && selectedRow.contains(sel.anchorNode)){
-    cursorPos = sel.anchorOffset;
-    // Add offset of any text nodes before anchor
-    const range = sel.getRangeAt(0);
-    const preRange = document.createRange();
-    preRange.selectNodeContents(selectedRow);
-    preRange.setEnd(range.startContainer, range.startOffset);
-    cursorPos = preRange.toString().length;
-  }
-
-  // Insert [chord] at cursorPos in the existing ChordPro line
-  const existing = lines[srcLine];
-  // Find the raw position in the ChordPro line corresponding to lyric cursorPos
-  let lyricCount = 0;
-  let rawPos = 0;
-  for(let i = 0; i < existing.length; i++){
-    if(existing[i] === '['){
-      // Skip over [chord]
-      const end = existing.indexOf(']', i);
-      if(end !== -1){ i = end; continue; }
-    }
-    if(lyricCount >= cursorPos){ rawPos = i; break; }
-    lyricCount++;
-    rawPos = i + 1;
-  }
-  lines[srcLine] = existing.slice(0, rawPos) + '[' + chord + ']' + existing.slice(rawPos);
-  ta.value = lines.join('\n');
-  addRecent(chord);
-  renderRecentChords();
-  // Re-render keeping selected line
-  const savedSelected = veSelectedLine;
-  veRender();
-  veSelectedLine = savedSelected;
-  // Re-focus the same row
-  const rows = display.querySelectorAll('.ve-lyric-row');
-  if(rows[savedSelected]){
-    rows[savedSelected].classList.add('ve-selected');
-    rows[savedSelected].focus();
-  }
-  toast(chord + ' placed');
-}
-
-// Switch between visual and raw modes
 function setEditorMode(mode){
   editorMode = mode;
-  const ta = document.getElementById('form-lyrics');
-  const vd = document.getElementById('ve-display');
+  const ta  = document.getElementById('form-lyrics');     // ChordPro source
+  const ct  = document.getElementById('chart-textarea');  // chart display
   const chartBtn = document.getElementById('mode-chart');
-  const proBtn = document.getElementById('mode-chordpro');
+  const proBtn   = document.getElementById('mode-chordpro');
   chartBtn.classList.toggle('active', mode === 'chart');
   proBtn.classList.toggle('active', mode === 'chordpro');
+
   if(mode === 'chart'){
+    // Convert ChordPro → chart and show chart textarea
+    ct.value = chordProToChart(ta.value);
+    ct.style.display = '';
     ta.style.display = 'none';
-    vd.style.display = '';
-    veSelectedLine = null;
-    veRender();
+    ct.focus();
   } else {
+    // Convert chart → ChordPro and show raw textarea
+    ta.value = chartToChordPro(ct.value);
     ta.style.display = '';
-    vd.style.display = 'none';
+    ct.style.display = 'none';
     ta.focus();
   }
 }
 
-// Override insertChord to use visual editor when in chart mode
+// Insert chord at cursor in chart mode
+function isChordOnlyLine(line){
+  // A chord line has no sequences of 3+ lowercase letters (i.e. no real words)
+  return !/[a-z]{3,}/.test(line) && /[A-G]/.test(line);
+}
+
 function insertChord(chord){
   if(editorMode === 'chart'){
-    veInsertChord(chord);
+    const ct = document.getElementById('chart-textarea');
+    const selStart = ct.selectionStart;
+    const val = ct.value;
+    const lines = val.split('\n');
+
+    // Find which line the cursor is on
+    let charCount = 0;
+    let curLineIdx = 0;
+    for(let li = 0; li < lines.length; li++){
+      if(charCount + lines[li].length >= selStart){ curLineIdx = li; break; }
+      charCount += lines[li].length + 1; // +1 for \n
+    }
+    const colPos = selStart - charCount;
+    const curLine = lines[curLineIdx];
+
+    let targetLineIdx; // which line to insert chord onto
+    if(isChordOnlyLine(curLine) || curLine.trim() === ''){
+      // Cursor is on a chord line or blank — insert here
+      targetLineIdx = curLineIdx;
+    } else {
+      // Cursor is on a lyric line — insert on chord line above
+      if(curLineIdx > 0 && (isChordOnlyLine(lines[curLineIdx-1]) || lines[curLineIdx-1].trim() === '')){
+        // Chord line already exists above
+        targetLineIdx = curLineIdx - 1;
+      } else {
+        // Create a new chord line above the lyric
+        lines.splice(curLineIdx, 0, '');
+        targetLineIdx = curLineIdx;
+        curLineIdx++; // lyric line moved down
+      }
+    }
+
+    // Insert chord at colPos on target line, padding with spaces if needed
+    let tLine = lines[targetLineIdx];
+    while(tLine.length < colPos) tLine += ' ';
+    // Replace any existing chord token at this position
+    const before = tLine.slice(0, colPos);
+    const after = tLine.slice(colPos).replace(/^[^\s]*\s?/, ''); // skip existing chord+space
+    lines[targetLineIdx] = (before + chord + ' ' + after).trimEnd();
+
+    ct.value = lines.join('\n');
+
+    // Restore cursor to same lyric line, same column
+    let newPos = 0;
+    for(let li = 0; li < curLineIdx; li++) newPos += lines[li].length + 1;
+    newPos += Math.min(colPos, lines[curLineIdx].length);
+    ct.selectionStart = ct.selectionEnd = newPos;
+
+    // Keep keyboard open — refocus textarea without re-rendering
+    ct.focus();
+    addRecent(chord);
+    // Update recent pills without full re-render (avoids keyboard close)
+    renderRecentChords();
+    // Update pinned/diatonic display without losing focus
+    setTimeout(()=>{ renderChordBar(); ct.focus(); }, 10);
     return;
   }
+  // ChordPro mode — insert [chord] at cursor
   const ta = document.getElementById('form-lyrics');
-  ta.focus();
   const pos = ta.selectionStart, val = ta.value;
   const ins = '[' + chord + ']';
   ta.value = val.slice(0, pos) + ins + val.slice(pos);
   ta.selectionStart = ta.selectionEnd = pos + ins.length;
+  ta.focus();
   addRecent(chord); renderRecentChords();
-  toast(chord + ' inserted');
 }
 
+// When switching from ChordPro to chart, sync is handled by setEditorMode
+// When switching from chart to ChordPro, sync is handled by setEditorMode
+// Save always reads from the correct source
 document.getElementById('mode-chart').addEventListener('mousedown', e => e.preventDefault());
 document.getElementById('mode-chordpro').addEventListener('mousedown', e => e.preventDefault());
 document.getElementById('mode-chart').addEventListener('click',()=>{ if(editorMode!=='chart') setEditorMode('chart'); });
 document.getElementById('mode-chordpro').addEventListener('click',()=>{ if(editorMode!=='chordpro') setEditorMode('chordpro'); });
-// Sync ChordPro textarea changes back when user edits raw
-document.getElementById('form-lyrics').addEventListener('input',()=>{
-  // no-op in raw mode, just keep value
-});
+document.getElementById('form-lyrics').addEventListener('input',()=>{ /* raw mode — value kept directly */ });
 
 
 
 
 // Prevent Save button from closing keyboard (use touchend)
 document.getElementById('modal-save').addEventListener('mousedown', e => e.preventDefault());
-document.getElementById('modal-cancel').addEventListener('click',closeModal);
-document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('modal-overlay'))closeModal();});
-document.getElementById('modal-save').addEventListener('click',()=>{
+function doSaveSong(){
   const title=document.getElementById('form-title').innerText.trim();
-  if(!title){toast('Please enter a title');return;}
-  const song={id:editingId||Date.now().toString(),title,artist:document.getElementById('form-artist').innerText.trim(),key:selectedKey,tag:selectedTag,lyrics:document.getElementById('form-lyrics').value};
-  if(editingId){const idx=songs.findIndex(s=>s.id===editingId);songs[idx]=song;if(currentSong&&currentSong.id===editingId)currentSong=song;toast('Updated!');}
-  else{songs.push(song);toast('Song added!');}
-  save();closeModal();renderLibrary();
+  if(!title){toast('Please enter a title');return false;}
+  const lyrics = getCurrentLyrics();
+  const song={id:editingId||Date.now().toString(),title,artist:document.getElementById('form-artist').innerText.trim(),key:selectedKey,tag:selectedTag,lyrics};
+  if(editingId){const idx=songs.findIndex(s=>s.id===editingId);songs[idx]=song;if(currentSong&&currentSong.id===editingId)currentSong=song;}
+  else{songs.push(song);}
+  save();renderLibrary();
   if(currentSong&&currentSong.id===song.id)renderSongView();
+  return true;
+}
+
+// ← Back button: autosave then close
+document.getElementById('modal-cancel').addEventListener('click',()=>{
+  if(doSaveSong()){ toast('Saved'); closeModal(); }
+});
+
+// ✕ Discard: abandon changes
+document.getElementById('modal-discard').addEventListener('click',()=>{
+  if(confirm('Discard changes?')){ closeModal(); }
+});
+
+// Undo / Redo
+document.getElementById('modal-undo').addEventListener('mousedown', e=>e.preventDefault());
+document.getElementById('modal-redo').addEventListener('mousedown', e=>e.preventDefault());
+document.getElementById('modal-undo').addEventListener('click', editorUndo);
+document.getElementById('modal-redo').addEventListener('click', editorRedo);
+
+document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('modal-overlay')){ if(doSaveSong()) closeModal(); }});
+document.getElementById('modal-save').addEventListener('click',()=>{
+  if(doSaveSong()){ toast(editingId?'Updated!':'Song added!'); closeModal(); }
 });
 document.getElementById('add-song-btn').addEventListener('click',()=>openModal());
 
@@ -2496,8 +2468,9 @@ function goToPage(n, animate){
   document.querySelectorAll('.page-dot').forEach(d=>d.classList.toggle('active', parseInt(d.dataset.page)===n));
   document.getElementById('sort-btn').style.display = n===0 ? '' : 'none';
   document.getElementById('import-btn').style.display = n===0 ? '' : 'none';
-  document.getElementById('add-song-btn').style.display = n===0 ? '' : 'none';
-  document.getElementById('add-setlist-fab').style.display = n===1 ? '' : 'none';
+  const addSongBtn = document.getElementById('add-song-btn');
+  if(addSongBtn) addSongBtn.style.display = n===0 ? '' : 'none';
+  // add-setlist-fab is now inline in the setlist header — no show/hide needed
 }
 
 // Swipe between library and setlist
@@ -2545,8 +2518,8 @@ function switchTab(screenId, showContent){
     document.getElementById('content').classList.add('song-active');
     document.getElementById('top-nav').style.display = 'none';
     document.getElementById('main-swipe').style.display = 'none';
-    document.getElementById('add-song-btn').style.display = 'none';
-    document.getElementById('add-setlist-fab').style.display = 'none';
+    const _ab = document.getElementById('add-song-btn'); if(_ab) _ab.style.display = 'none';
+    // add-setlist-fab is inline — no hide needed
     document.getElementById('select-bar').classList.remove('visible');
   } else {
     // Returning to main view — restore FAB for current page
@@ -3019,18 +2992,55 @@ document.getElementById('sl-picker-btn').addEventListener('click', e=>{
   const dd = document.getElementById('sl-picker-dropdown');
   dd.classList.contains('open') ? closeSlPicker() : openSlPicker();
 });
-// Long-press or double-tap on picker pill to rename current setlist
+// Tap setlist name to rename inline
 let slPickerTapTimer=null;
+let slRenaming=false;
+
+function startSlRename(){
+  const sl=activeSetlist();if(!sl)return;
+  const nameEl=document.getElementById('sl-picker-name');
+  if(!nameEl||slRenaming)return;
+  slRenaming=true;
+  // Make it editable
+  nameEl.contentEditable='true';
+  nameEl.style.outline='none';
+  nameEl.style.borderBottom='1px solid var(--accent)';
+  nameEl.style.minWidth='80px';
+  nameEl.focus();
+  // Select all text
+  const range=document.createRange();
+  range.selectNodeContents(nameEl);
+  const sel=window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function finishRename(){
+    if(!slRenaming)return;
+    slRenaming=false;
+    nameEl.contentEditable='false';
+    nameEl.style.borderBottom='';
+    const newName=(nameEl.innerText||'').trim();
+    if(newName&&sl){
+      sl.name=newName;
+      save();
+      document.getElementById('sl-picker-name').textContent=newName;
+    } else {
+      nameEl.textContent=sl.name; // restore
+    }
+  }
+
+  nameEl.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); nameEl.blur(); }
+    if(e.key==='Escape'){ nameEl.textContent=sl.name; nameEl.blur(); }
+    e.stopPropagation();
+  },{once:false});
+  nameEl.addEventListener('blur', finishRename, {once:true});
+}
+
 document.getElementById('sl-picker-btn').addEventListener('touchstart',()=>{
   slPickerTapTimer=setTimeout(()=>{
-    const sl=activeSetlist();if(!sl)return;
-    const newName=prompt('Rename setlist:',sl.name);
-    if(newName&&newName.trim()){
-      sl.name=newName.trim();
-      const idx=setlists.indexOf(sl);
-      if(idx!==-1)setlists[idx].name=sl.name;
-      save();renderSetlist();
-    }
+    closeSlPicker();
+    startSlRename();
   },600);
 },{passive:true});
 document.getElementById('sl-picker-btn').addEventListener('touchend',()=>clearTimeout(slPickerTapTimer),{passive:true});
