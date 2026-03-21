@@ -21,7 +21,7 @@
   --text:#e8e6e1;--text2:#9a9db5;--text3:#5c6080;
   --border:#2a2f48;--danger:#e63946;--radius:12px;--t:.18s ease;
 }
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
 
@@ -101,10 +101,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .song-card-wrap{position:relative;overflow:hidden;border-radius:var(--radius)}
 .song-card-select-bg{position:absolute;inset:0;background:var(--chord);display:flex;align-items:center;padding-left:18px;opacity:0;transition:opacity .15s;pointer-events:none;border-radius:var(--radius)}
 .song-card-select-bg svg{flex-shrink:0}
-/* Left swipe — edit/delete actions */
-.song-card-action-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;gap:0;border-radius:var(--radius);pointer-events:none;visibility:hidden}
-.song-card-action-bg.active{visibility:visible}
-.song-card-action-bg.revealed{pointer-events:all}
+/* Left swipe removed — edit/delete via song actions popup */
+.song-card-action-bg{display:none}
 .sca-btn{height:100%;padding:0 18px;border:none;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:white;transition:filter var(--t)}
 .sca-btn:hover{filter:brightness(1.15)}
 .sca-edit{background:#3a7bd5}
@@ -406,7 +404,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 /* Pinned chord pill in bar */
 .chord-bar-pill.pinned{background:var(--chord);color:#0d0f14;border-color:var(--chord)}
 .chord-bar-pill.pinned .pin-x{margin-left:4px;opacity:.7;font-size:10px}
-.ve-lyric-row{display:block;white-space:pre-wrap;min-height:1.4em;line-height:1.4;outline:none;cursor:text;border-radius:3px}
+.ve-lyric-row{display:block;white-space:pre-wrap;min-height:1.4em;line-height:1.4;outline:none;cursor:text;border-radius:3px;-webkit-user-select:text;user-select:text}
 .ve-lyric-row:focus{background:rgba(255,255,255,.04)}
 .ve-blank{display:block;height:10px}
 .ve-lyric-row.ve-selected{background:rgba(79,110,247,.15)}
@@ -680,7 +678,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
         <div style="font-size:11pt;color:#555;margin-top:4pt" id="pdf-artist"></div>
         <div style="font-size:10pt;color:#777;margin-top:2pt" id="pdf-key"></div>
       </div>
-      <div id="song-lyrics"></div>
+      <div id="song-lyrics" style="-webkit-user-select:none;user-select:none"></div>
       <!-- SWIPE INDICATOR (between songs in setlist) -->
       <div id="swipe-indicator">
         <span id="swipe-prev">←</span>
@@ -807,9 +805,9 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       </div>
 
       <!-- Editor fills ALL remaining space and scrolls internally -->
-      <div id="ve-display" class="ve-display" style="flex:1;max-height:none;border-radius:0;border-left:none;border-right:none;border-bottom:none;overflow-y:auto"></div>
+      <div id="ve-display" class="ve-display" style="flex:1;max-height:none;border-radius:0;border-left:none;border-right:none;border-bottom:none;overflow-y:auto;-webkit-user-select:text;user-select:text"></div>
       <textarea id="form-lyrics" spellcheck="false"
-        style="display:none;flex:1;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;background:var(--surface2);border:none;color:var(--text);padding:12px 14px;outline:none;resize:none;overflow-y:auto"></textarea>
+        style="display:none;flex:1;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;background:var(--surface2);border:none;color:var(--text);padding:12px 14px;outline:none;resize:none;overflow-y:auto;-webkit-user-select:text;user-select:text"></textarea>
     </div>
 
     <!-- Hidden elements kept for JS compatibility -->
@@ -931,14 +929,33 @@ const ALL_CHORDS=[];
   ['','m','7','m7','maj7','sus2','sus4','dim','aug','6','m6','9','add9','m9','11','13','7sus4','2','5'].forEach(s=>ALL_CHORDS.push(r+s));
 });
 const CHORD_NOTES={
-  'C':['C','E','G'],'Cm':['C','Eb','G'],'C7':['C','E','G','Bb'],'Cmaj7':['C','E','G','B'],'Csus2':['C','D','G'],'Csus4':['C','F','G'],
-  'D':['D','F#','A'],'Dm':['D','F','A'],'D7':['D','F#','A','C'],'Dmaj7':['D','F#','A','C#'],'Dsus4':['D','G','A'],
-  'E':['E','G#','B'],'Em':['E','G','B'],'E7':['E','G#','B','D'],'Esus4':['E','A','B'],
-  'F':['F','A','C'],'Fm':['F','Ab','C'],'F7':['F','A','C','Eb'],'Fmaj7':['F','A','C','E'],
-  'G':['G','B','D'],'Gm':['G','Bb','D'],'G7':['G','B','D','F'],'Gmaj7':['G','B','D','F#'],'Gsus4':['G','C','D'],
-  'A':['A','C#','E'],'Am':['A','C','E'],'A7':['A','C#','E','G'],'Amaj7':['A','C#','E','G#'],'Asus4':['A','D','E'],
-  'B':['B','D#','F#'],'Bm':['B','D','F#'],'B7':['B','D#','F#','A'],'Bsus4':['B','E','F#'],
-  'F#':['F#','A#','C#'],'F#m':['F#','A','C#'],'Bb':['Bb','D','F'],'Eb':['Eb','G','Bb'],'Ab':['Ab','C','Eb'],'Db':['Db','F','Ab'],'Cadd9':['C','E','G','D'],
+  // Major
+  'C':['C','E','G'],'D':['D','F#','A'],'E':['E','G#','B'],'F':['F','A','C'],
+  'G':['G','B','D'],'A':['A','C#','E'],'B':['B','D#','F#'],
+  'F#':['F#','A#','C#'],'Bb':['Bb','D','F'],'Eb':['Eb','G','Bb'],
+  'Ab':['Ab','C','Eb'],'Db':['Db','F','Ab'],'Gb':['Gb','Bb','Db'],
+  // Minor
+  'Cm':['C','Eb','G'],'Dm':['D','F','A'],'Em':['E','G','B'],'Fm':['F','Ab','C'],
+  'Gm':['G','Bb','D'],'Am':['A','C','E'],'Bm':['B','D','F#'],
+  'F#m':['F#','A','C#'],'Bbm':['Bb','Db','F'],'Ebm':['Eb','Gb','Bb'],
+  'Abm':['Ab','Cb','Eb'],'C#m':['C#','E','G#'],'G#m':['G#','B','D#'],
+  // Dominant 7th
+  'C7':['C','E','G','Bb'],'D7':['D','F#','A','C'],'E7':['E','G#','B','D'],
+  'F7':['F','A','C','Eb'],'G7':['G','B','D','F'],'A7':['A','C#','E','G'],
+  'B7':['B','D#','F#','A'],'Bb7':['Bb','D','F','Ab'],'Eb7':['Eb','G','Bb','Db'],
+  // Major 7th
+  'Cmaj7':['C','E','G','B'],'Dmaj7':['D','F#','A','C#'],'Emaj7':['E','G#','B','D#'],
+  'Fmaj7':['F','A','C','E'],'Gmaj7':['G','B','D','F#'],'Amaj7':['A','C#','E','G#'],
+  'Bmaj7':['B','D#','F#','A#'],'Bbmaj7':['Bb','D','F','A'],
+  // Minor 7th (fix for issue #8)
+  'Cm7':['C','Eb','G','Bb'],'Dm7':['D','F','A','C'],'Em7':['E','G','B','D'],
+  'Fm7':['F','Ab','C','Eb'],'Gm7':['G','Bb','D','F'],'Am7':['A','C','E','G'],
+  'Bm7':['B','D','F#','A'],'F#m7':['F#','A','C#','E'],'C#m7':['C#','E','G#','B'],
+  // Sus / Add
+  'Csus2':['C','D','G'],'Csus4':['C','F','G'],'Dsus4':['D','G','A'],
+  'Esus4':['E','A','B'],'Gsus4':['G','C','D'],'Asus4':['A','D','E'],
+  'Bsus4':['B','E','F#'],'Fsus4':['F','Bb','C'],
+  'Cadd9':['C','E','G','D'],'Dadd9':['D','F#','A','E'],'Gadd9':['G','B','D','A'],
 };
 
 // ===== STATE =====
@@ -1065,15 +1082,33 @@ function renderSongView(){
 
   lyricsEl.querySelectorAll('.seg-chord[data-chord]').forEach(el=>{
     el.addEventListener('click',e=>{
-      if(!showChordNotes) return;
+      if(!showChordNotes){
+        // Do nothing — no highlight when chord notes are off
+        return;
+      }
+      e.stopPropagation();
       const tip=document.getElementById('chord-tooltip');
-      const notes=CHORD_NOTES[el.dataset.chord]||[];
-      document.getElementById('tt-chord').textContent=el.dataset.chord;
-      document.getElementById('tt-notes').textContent=notes.join(' · ')||'—';
-      tip.style.display='block';
-      tip.style.left=Math.min(e.clientX-50,window.innerWidth-150)+'px';
-      tip.style.top=Math.max(10,e.clientY-80)+'px';
-      setTimeout(()=>tip.style.display='none',2500);
+      const chord=el.dataset.chord;
+      const currentlyOpen = tip.style.display==='block' && tip.dataset.chord===chord;
+      const showingNotes = tip.dataset.mode==='notes';
+      if(currentlyOpen && showingNotes){
+        // Second tap — show related chords for the song key
+        const keyData=KEY_DATA[transposeChord(currentSong.key,currentTranspose)];
+        const related=keyData?[...(keyData.d||[]),...(keyData.s||[])].filter(c=>c!==chord):[];
+        document.getElementById('tt-chord').textContent=chord+' — related';
+        document.getElementById('tt-notes').textContent=related.length?related.join(' · '):'—';
+        tip.dataset.mode='related';
+      } else {
+        // First tap — show notes
+        const notes=CHORD_NOTES[chord]||CHORD_NOTES[chord.replace('b','♭')]||[];
+        document.getElementById('tt-chord').textContent=chord;
+        document.getElementById('tt-notes').textContent=notes.length?notes.join(' · '):'No notes found';
+        tip.dataset.mode='notes';
+        tip.dataset.chord=chord;
+        tip.style.left=Math.min(e.clientX-60,window.innerWidth-160)+'px';
+        tip.style.top=Math.max(60,e.clientY-90)+'px';
+        tip.style.display='block';
+      }
     });
   });
 
@@ -1499,16 +1534,11 @@ function renderLibrary(){
     const id = card.dataset.id;
     let sx=0, sy=0, tracking=false, lockedH=null, swipeDir=null;
     const THRESHOLD = 70;
-    const ACTION_W = 130; // width of edit+delete buttons
 
     function snapBack(){
       card.style.transition='transform .2s ease';
       card.style.transform='translateX(0)';
-      const wrap=card.closest('.song-card-wrap');
-      wrap.querySelector('.song-card-select-bg').style.opacity='0';
-      const ab=wrap.querySelector('.song-card-action-bg');
-      ab.classList.remove('revealed');
-      ab.classList.remove('active');
+      card.closest('.song-card-wrap').querySelector('.song-card-select-bg').style.opacity='0';
     }
 
     card.addEventListener('touchstart', e=>{
@@ -1527,95 +1557,41 @@ function renderLibrary(){
       }
       if(!lockedH) return;
       e.stopPropagation(); e.preventDefault();
-      const wrap=card.closest('.song-card-wrap');
       if(swipeDir==='right'){
         const clamped=Math.max(0,Math.min(dx,THRESHOLD+20));
         card.style.transform=`translateX(${clamped}px)`;
-        wrap.querySelector('.song-card-select-bg').style.opacity=Math.min(clamped/THRESHOLD,1);
-      } else {
-        // Left swipe — reveal action buttons
-        const clamped=Math.max(-ACTION_W-10,Math.min(dx,0));
+        card.closest('.song-card-wrap').querySelector('.song-card-select-bg').style.opacity=Math.min(clamped/THRESHOLD,1);
+      } else if(swipeDir==='left' && selectedSongs.has(id)){
+        // Only left-swipe works on selected songs to deselect
+        const clamped=Math.max(-THRESHOLD-20,Math.min(dx,0));
         card.style.transform=`translateX(${clamped}px)`;
-        wrap.querySelector('.song-card-action-bg').classList.add('active');
       }
     },{passive:false});
 
     card.addEventListener('touchend', e=>{
       if(!tracking) return; tracking=false;
-      e.stopPropagation();
-      const wrap=card.closest('.song-card-wrap');
-      const selectBg=wrap.querySelector('.song-card-select-bg');
-      const actionBg=wrap.querySelector('.song-card-action-bg');
       const dx=e.changedTouches[0].clientX-sx;
-
-      if(swipeDir==='right'){
-        card.style.transition='transform .2s ease';
-        card.style.transform='translateX(0)';
-        selectBg.style.opacity='0';
-        if(dx>=THRESHOLD) toggleSelect(id);
-      } else if(swipeDir==='left'){
-        if(dx<=-ACTION_W/2){
-          // Snap to revealed state
-          card.style.transition='transform .2s ease';
-          card.style.transform=`translateX(-${ACTION_W}px)`;
-          actionBg.classList.add('revealed');
-          closeActionBg(id);
-          openActionCardId=id;
-        } else {
-          snapBack();
-        }
-      } else if(!lockedH){
+      if(swipeDir==='right' && dx>=THRESHOLD){
+        snapBack();
+        toggleSelect(id); // right swipe always selects
+      } else if(swipeDir==='left' && selectedSongs.has(id) && dx<=-THRESHOLD){
+        snapBack();
+        toggleSelect(id); // left swipe on selected = deselect
+      } else if(!lockedH || (lockedH && Math.abs(dx)<10)){
         // Pure tap
-        if(openActionCardId){ closeActionBg(null); openActionCardId=null; return; }
-        if(selectedSongs.size>0) toggleSelect(id);
-        else openSong(id);
+        snapBack();
+        if(selectedSongs.size>0) toggleSelect(id); // in selection mode — tap toggles
+        else openSong(id); // normal mode — tap opens
+      } else {
+        snapBack();
       }
     },{passive:false});
 
     card.addEventListener('touchcancel',()=>{ tracking=false; snapBack(); });
-
-    card.addEventListener('click', e=>{
-      if(openActionCardId){ closeActionBg(null); openActionCardId=null; return; }
+    // Desktop click fallback
+    card.addEventListener('click', ()=>{
       if(selectedSongs.size>0) toggleSelect(id);
       else openSong(id);
-    });
-  });
-
-  // Wire edit/delete action buttons
-  list.querySelectorAll('.sca-btn').forEach(btn=>{
-    btn.addEventListener('click', e=>{
-      e.stopPropagation();
-      const id=btn.dataset.id;
-      const wrap=btn.closest('.song-card-wrap');
-      const card=wrap.querySelector('.song-card');
-      if(btn.dataset.action==='edit'){
-        // Snap back then open editor
-        card.style.transition='transform .2s ease';
-        card.style.transform='translateX(0)';
-        const ab1=btn.closest('.song-card-action-bg');
-        ab1.classList.remove('revealed'); ab1.classList.remove('active');
-        openActionCardId=null;
-        openModal(id);
-      } else if(btn.dataset.action==='delete'){
-        const song=songs.find(s=>s.id===id);
-        if(!song) return;
-        if(confirm(`Delete "${song.title}"?
-
-This cannot be undone.`)){
-          songs=songs.filter(s=>s.id!==id);
-          // Remove from all setlists
-          setlists.forEach(sl=>{ sl.songs=sl.songs.filter(sid=>sid!==id); });
-          save(); renderLibrary(); renderSetlist();
-          toast('Song deleted');
-        } else {
-          // Cancel — snap back
-          card.style.transition='transform .2s ease';
-          card.style.transform='translateX(0)';
-          const ab2=btn.closest('.song-card-action-bg');
-          ab2.classList.remove('revealed'); ab2.classList.remove('active');
-          openActionCardId=null;
-        }
-      }
     });
   });
 }
@@ -1782,24 +1758,51 @@ function openSongActions(){
   const inSL=sl?sl.songs.includes(currentSong.id):false;
   document.getElementById('song-action-title').textContent=currentSong.title;
   document.getElementById('song-action-artist').textContent=currentSong.artist||'';
-  const btns=document.getElementById('song-action-btns');
-  btns.innerHTML=`
-    <button class="action-btn" id="sa-edit"><span class="action-btn-icon">✎</span>Edit song</button>
-    <button class="action-btn" id="sa-setlist"><span class="action-btn-icon">${inSL?'✓':'+'}</span>${inSL?'Remove from setlist':'Add to setlist'}</button>
-    <button class="action-btn" id="sa-close" style="justify-content:center;color:var(--text3)">Cancel</button>
-  `;
-  document.getElementById('sa-edit').addEventListener('click',()=>{closeSongActions();openModal(currentSong.id);});
-  document.getElementById('sa-setlist').addEventListener('click',()=>{
-    if(!currentSong)return;
-    const sl=activeSetlist();
-    if(!sl){toast('No setlist — create one first');closeSongActions();return;}
-    if(sl.songs.includes(currentSong.id)){sl.songs=sl.songs.filter(id=>id!==currentSong.id);toast('Removed from setlist');}
-    else{sl.songs.push(currentSong.id);toast('Added to setlist!');}
-    save();renderSongView();renderLibrary();renderSetlist();closeSongActions();
-  });
-  document.getElementById('sa-close').addEventListener('click',closeSongActions);
+  renderSongActionBtns(false);
   document.getElementById('song-action-overlay').classList.add('open');
   document.getElementById('song-action-sheet').classList.add('open');
+}
+function renderSongActionBtns(confirmDelete){
+  if(!currentSong)return;
+  const sl=activeSetlist();
+  const inSL=sl?sl.songs.includes(currentSong.id):false;
+  const btns=document.getElementById('song-action-btns');
+  if(confirmDelete){
+    btns.innerHTML=`
+      <div style="padding:10px 16px;font-size:14px;color:var(--text2);text-align:center">Delete "${esc(currentSong.title)}"?</div>
+      <button class="action-btn" id="sa-confirm-delete" style="color:var(--danger)"><span class="action-btn-icon">✓</span>Confirm delete</button>
+      <button class="action-btn" id="sa-cancel-delete" style="justify-content:center;color:var(--text3)">Cancel</button>
+    `;
+    document.getElementById('sa-confirm-delete').addEventListener('click',()=>{
+      const id=currentSong.id;
+      songs=songs.filter(s=>s.id!==id);
+      setlists.forEach(sl=>{ sl.songs=sl.songs.filter(sid=>sid!==id); });
+      save(); renderLibrary(); renderSetlist();
+      closeSongActions();
+      // Go back to library
+      document.getElementById('back-btn').click();
+      toast('Song deleted');
+    });
+    document.getElementById('sa-cancel-delete').addEventListener('click',()=>renderSongActionBtns(false));
+  } else {
+    btns.innerHTML=`
+      <button class="action-btn" id="sa-edit"><span class="action-btn-icon">✎</span>Edit song</button>
+      <button class="action-btn" id="sa-setlist"><span class="action-btn-icon">${inSL?'✓':'+'}</span>${inSL?'Remove from setlist':'Add to setlist'}</button>
+      <button class="action-btn" id="sa-delete" style="color:var(--danger)"><span class="action-btn-icon">🗑</span>Delete song</button>
+      <button class="action-btn" id="sa-close" style="justify-content:center;color:var(--text3)">Cancel</button>
+    `;
+    document.getElementById('sa-edit').addEventListener('click',()=>{closeSongActions();openModal(currentSong.id);});
+    document.getElementById('sa-setlist').addEventListener('click',()=>{
+      if(!currentSong)return;
+      const sl=activeSetlist();
+      if(!sl){toast('No setlist — create one first');closeSongActions();return;}
+      if(sl.songs.includes(currentSong.id)){sl.songs=sl.songs.filter(id=>id!==currentSong.id);toast('Removed from setlist');}
+      else{sl.songs.push(currentSong.id);toast('Added to setlist!');}
+      save();renderSongView();renderLibrary();renderSetlist();closeSongActions();
+    });
+    document.getElementById('sa-delete').addEventListener('click',()=>renderSongActionBtns(true));
+    document.getElementById('sa-close').addEventListener('click',closeSongActions);
+  }
 }
 function closeSongActions(){
   document.getElementById('song-action-overlay').classList.remove('open');
@@ -2543,6 +2546,11 @@ document.getElementById('song-view-screen').addEventListener('click', e=>{
   if(e.target.closest('#song-view-header')) return;
   if(e.target.closest('#scroll-handle')) return;
   if(e.target.closest('#swipe-indicator')) return;
+  // Close chord tooltip on tap outside
+  const tip=document.getElementById('chord-tooltip');
+  if(tip && tip.style.display==='block' && !e.target.closest('#chord-tooltip') && !e.target.closest('.seg-chord')){
+    tip.style.display='none';
+  }
   if(e.target.closest('#chord-tooltip')) return;
   toggleHeader();
 });
@@ -3030,6 +3038,44 @@ document.getElementById('speed-val') && (document.getElementById('speed-val').te
 renderLibrary();
 renderSetlist();
 
+// ── Back button — prevent app exit ──
+// Push a state so the back button has something to pop
+history.pushState({page:'library'}, '');
+let lastBackPress = 0;
+window.addEventListener('popstate', e => {
+  // Re-push so back button always has a state to pop
+  history.pushState({page:'library'}, '');
+  // If song is open — close it
+  if(document.getElementById('content').classList.contains('song-active')){
+    document.getElementById('back-btn').click();
+    return;
+  }
+  // If QS panel open — close it
+  if(document.getElementById('qs-panel').classList.contains('open')){
+    closeQS(); return;
+  }
+  // If modal open — close it
+  if(document.getElementById('modal-overlay').classList.contains('open')){
+    closeModal(); return;
+  }
+  // If song picker open — close it
+  if(document.getElementById('song-picker-sheet').classList.contains('open')){
+    closePickerSheet(); return;
+  }
+  // If on setlist page — go back to library
+  if(mainPage===1){ goToPage(0); return; }
+  // On library with nothing open — toast "press again to exit"
+  const now = Date.now();
+  if(now - lastBackPress < 2000){
+    // Double back — allow exit (can't prevent in PWA)
+    toast('Closing...');
+    setTimeout(()=>window.close(), 300);
+  } else {
+    lastBackPress = now;
+    toast('Press back again to exit');
+  }
+});
+
 // Prompt to install as PWA (removes URL bar permanently)
 if(!window.matchMedia('(display-mode: standalone)').matches && !localStorage.getItem('cb_install_dismissed')){
   const nav = document.getElementById('top-nav');
@@ -3148,13 +3194,30 @@ function initDriveClient(){
     client_id: GDRIVE_CLIENT_ID,
     scope: GDRIVE_SCOPE,
     callback: async (resp) => {
-      if(resp.error){ updateDriveStatus('Sign in failed', false); return; }
+      if(resp.error && resp.error !== 'immediate_failed'){
+        updateDriveStatus('Sign in failed — tap to retry', false);
+        return;
+      }
+      if(resp.error === 'immediate_failed'){
+        // Silent sign-in failed (token expired) — need user interaction
+        updateDriveStatus('Tap to reconnect Drive', false);
+        return;
+      }
       driveAccessToken = resp.access_token;
       driveSyncEnabled = true;
       localStorage.setItem('cb_drive_sync', '1');
+      // Store token expiry so we can refresh proactively
+      localStorage.setItem('cb_drive_expiry', Date.now() + (resp.expires_in * 1000));
       updateDriveStatus('Signed in — syncing…', true);
       await driveRestore();
       driveBackup();
+      // Set up token refresh before expiry
+      const refreshIn = Math.max(0, (resp.expires_in - 60)) * 1000;
+      setTimeout(()=>{
+        if(driveSyncEnabled && driveTokenClient){
+          driveTokenClient.requestAccessToken({ prompt: '' });
+        }
+      }, refreshIn);
     }
   });
   // Auto sign-in silently if previously signed in
