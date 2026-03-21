@@ -3299,11 +3299,11 @@ function initDriveClient(){
     }
   });
 
-  // Auto sign-in silently if previously signed in — no prompt, no UI
+  // Don't auto sign-in on startup — avoids popup on every app launch
+  // Sync happens automatically when app goes to background (visibilitychange)
+  // or when user taps the sign-in button
   if(driveSyncEnabled){
-    updateDriveStatus('Connecting…', false);
-    // prompt:'' with hint = completely silent — no account picker shown
-    driveTokenClient.requestAccessToken({ prompt: '', hint: savedHint });
+    updateDriveStatus('Drive sync ready — will sync on close', true);
   }
 }
 
@@ -3324,10 +3324,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
 });
 
-// Auto backup when app goes to background or closes
+// Auto backup when app goes to background — request token silently then backup
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'hidden' && driveAccessToken){
-    driveBackup();
+  if(document.visibilityState === 'hidden' && driveSyncEnabled && driveTokenClient){
+    const savedHint = localStorage.getItem('cb_drive_hint') || '';
+    if(driveAccessToken){
+      driveBackup();
+    } else {
+      // Get token silently — if it fails nothing happens (no popup shown)
+      driveTokenClient.requestAccessToken({ prompt: '', hint: savedHint });
+      // Short delay to let token resolve before page hides
+      setTimeout(()=>{ if(driveAccessToken) driveBackup(); }, 1000);
+    }
   }
 });
 
