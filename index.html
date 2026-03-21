@@ -2831,25 +2831,43 @@ document.getElementById('sel-add-current').addEventListener('click',()=>{
 });
 document.getElementById('sel-add-other').addEventListener('click',()=>{
   if(!setlists.length){toast('No setlists — create one first');return;}
-  // Build a quick picker sheet
-  const existing = document.getElementById('select-bar');
-  // Temporarily show setlist options
-  const btns = document.getElementById('select-bar-btns');
-  const orig = btns.innerHTML;
-  btns.innerHTML = setlists.map((s,i)=>
-    `<button class="select-bar-btn" data-sl-idx="${i}" style="font-size:12px">${esc(s.name)}</button>`
-  ).join('');
+  // Show a bottom sheet with all setlists
+  showSetlistPickerSheet((sl)=>{
+    let added=0;
+    selectedSongs.forEach(id=>{ if(!sl.songs.includes(id)){sl.songs.push(id);added++;} });
+    save();clearSelection();renderSetlist();renderLibrary();
+    toast(`${added} song${added!==1?'s':''} added to "${sl.name}"`);
+  });
+});
+
+function showSetlistPickerSheet(onPick){
+  // Reuse the existing song-action-sheet as a quick setlist picker
+  const sheet = document.getElementById('song-action-sheet');
+  const overlay = document.getElementById('song-action-overlay');
+  const title = document.getElementById('song-action-title');
+  const artist = document.getElementById('song-action-artist');
+  const btns = document.getElementById('song-action-btns');
+  title.textContent = 'Add to setlist';
+  artist.textContent = '';
+  btns.innerHTML = setlists.map((s,i)=>`
+    <button class="action-btn" data-sl-idx="${i}">
+      <span class="action-btn-icon">♪</span>${esc(s.name)}
+    </button>`).join('') +
+    `<button class="action-btn" id="sl-pick-cancel" style="justify-content:center;color:var(--text3)">Cancel</button>`;
   btns.querySelectorAll('[data-sl-idx]').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      const sl=setlists[parseInt(btn.dataset.slIdx)];
-      let added=0;
-      selectedSongs.forEach(id=>{ if(!sl.songs.includes(id)){sl.songs.push(id);added++;} });
-      save();clearSelection();renderSetlist();renderLibrary();
-      toast(`${added} song${added!==1?'s':''} added to "${sl.name}"`);
+      overlay.classList.remove('open');
+      sheet.classList.remove('open');
+      onPick(setlists[parseInt(btn.dataset.slIdx)]);
     });
   });
-  document.getElementById('select-bar-title').textContent = 'Choose a setlist:';
-});
+  document.getElementById('sl-pick-cancel').addEventListener('click',()=>{
+    overlay.classList.remove('open');
+    sheet.classList.remove('open');
+  });
+  overlay.classList.add('open');
+  sheet.classList.add('open');
+}
 document.getElementById('select-bar-cancel').addEventListener('click',()=>clearSelection());
 
 // Create new setlist
