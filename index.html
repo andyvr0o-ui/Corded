@@ -2197,13 +2197,29 @@ function veRender(){
   });
 
   // Tap on non-lyric areas: keep keyboard by refocusing current/nearest lyric row
+  // Single touchstart handler — chord dismiss takes priority over refocus
   display.addEventListener('touchstart', e => {
-    // If tapping directly on a lyric row or blank line, let it handle itself
-    if(e.target.closest('.ve-lyric-row')) return;
-    if(e.target.closest('.ve-blank-line')) return;
-    // If tapping a chord span, don't steal focus
-    if(e.target.closest('.ve-chord-span')) return;
-    // Otherwise find the nearest lyric row and focus it
+    const onChordSpan = e.target.closest('.ve-chord-span');
+    const onChordTick = e.target.closest('.ve-chord-tick');
+    const onLyricRow  = e.target.closest('.ve-lyric-row');
+    const onBlankLine = e.target.closest('.ve-blank-line');
+
+    // If chord popup is open and tap is outside it — dismiss it first
+    if(veActiveChord && !onChordSpan && !onChordTick){
+      e.preventDefault();
+      veActiveChord = null;
+      const savedSelected = veSelectedLine;
+      veRender();
+      veSelectedLine = savedSelected;
+      const rows = display.querySelectorAll('.ve-lyric-row');
+      if(savedSelected !== null && rows[savedSelected]) rows[savedSelected].focus();
+      return; // don't do anything else this tap
+    }
+
+    // Tapping lyric row or blank line — let native focus handle it
+    if(onLyricRow || onBlankLine || onChordSpan) return;
+
+    // Tapping elsewhere (chord row gap, section header etc) — focus nearest lyric row
     e.preventDefault();
     const rows = display.querySelectorAll('.ve-lyric-row');
     if(!rows.length) return;
@@ -2213,26 +2229,11 @@ function veRender(){
     rows.forEach(row => {
       const rect = row.getBoundingClientRect();
       const mid = rect.top + rect.height / 2;
-      const dist = Math.abs(touchY - mid);
-      if(dist < minDist){ minDist = dist; nearest = row; }
+      if(Math.abs(touchY - mid) < minDist){ minDist = Math.abs(touchY - mid); nearest = row; }
     });
     nearest.focus();
     veSelectedLine = parseInt(nearest.dataset.lyricIdx);
     display.querySelectorAll('.ve-lyric-row').forEach(r => r.classList.toggle('ve-selected', r === nearest));
-  }, {passive:false});
-
-  // Tap outside chord span — dismiss active chord (remove popup)
-  display.addEventListener('touchstart', e => {
-    if(veActiveChord && !e.target.closest('.ve-chord-span') && !e.target.closest('.ve-chord-tick')){
-      e.preventDefault();
-      veActiveChord = null;
-      const savedSelected = veSelectedLine;
-      veRender();
-      veSelectedLine = savedSelected;
-      // Re-focus
-      const rows = display.querySelectorAll('.ve-lyric-row');
-      if(savedSelected !== null && rows[savedSelected]) rows[savedSelected].focus();
-    }
   }, {passive:false});
 }
 
