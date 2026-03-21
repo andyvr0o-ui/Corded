@@ -404,7 +404,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 /* Pinned chord pill in bar */
 .chord-bar-pill.pinned{background:var(--chord);color:#0d0f14;border-color:var(--chord)}
 .chord-bar-pill.pinned .pin-x{margin-left:4px;opacity:.7;font-size:10px}
-.ve-lyric-row{display:block;white-space:pre-wrap;min-height:1.4em;line-height:1.4;outline:none;cursor:text;border-radius:3px;-webkit-user-select:text;user-select:text}
+.ve-lyric-row{display:block;white-space:pre-wrap;min-height:1.4em;line-height:1.4;outline:none;cursor:text;border-radius:3px;-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 .ve-lyric-row:focus{background:rgba(255,255,255,.04)}
 .ve-blank{display:block;height:10px}
 .ve-lyric-row.ve-selected{background:rgba(79,110,247,.15)}
@@ -2060,7 +2060,8 @@ function veRender(){
     if(block.type === 'section'){
       html += `<span class="ve-section">\u2014 ${esc(block.label)} \u2014</span>`;
     } else if(block.type === 'blank'){
-      html += `<span class="ve-blank"></span>`;
+      // Make blank lines editable so backspace can delete them
+      html += `<span class="ve-blank-line" contenteditable="true" spellcheck="false" data-src-line="${block.srcLine}" style="display:block;min-height:1em;-webkit-user-select:text;user-select:text;font-family:'JetBrains Mono',monospace;outline:none"></span>`;
     } else if(block.type === 'line'){
       // Build lyric line with monospace spacing
       const lyricText = block.lyric;
@@ -2140,19 +2141,72 @@ function veRender(){
     });
     row.addEventListener('input', () => { veSaveLyricEdit(row); });
     row.addEventListener('blur',  () => { veSaveLyricEdit(row); });
+
+    // Handle backspace on empty line — delete the line from ChordPro
+    row.addEventListener('keydown', e => {
+      if(e.key === 'Backspace' || e.key === 'Delete'){
+        const text = row.innerText.trim();
+        if(text === ''){
+          e.preventDefault();
+          const srcLine = parseInt(row.dataset.srcLine);
+          const ta = document.getElementById('form-lyrics');
+          const lines = ta.value.split('\n');
+          if(lines.length <= 1) return;
+          lines.splice(srcLine, 1);
+          ta.value = lines.join('\n');
+          // Move focus to previous line if possible
+          const newSelected = Math.max(0, veSelectedLine - 1);
+          veSelectedLine = newSelected;
+          veRender();
+          const rows2 = display.querySelectorAll('.ve-lyric-row');
+          if(rows2[newSelected]) rows2[newSelected].focus();
+        }
+      }
+      // Enter key — insert new blank line after current
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        const srcLine = parseInt(row.dataset.srcLine);
+        const ta = document.getElementById('form-lyrics');
+        const lines = ta.value.split('\n');
+        lines.splice(srcLine + 1, 0, '');
+        ta.value = lines.join('\n');
+        const savedIdx = veSelectedLine;
+        veRender();
+        // Move to new line
+        const rows2 = display.querySelectorAll('.ve-lyric-row');
+        if(rows2[savedIdx + 1]) rows2[savedIdx + 1].focus();
+      }
+    });
+  });
+
+  // Wire blank line events — backspace deletes the blank line
+  display.querySelectorAll('.ve-blank-line').forEach(blank => {
+    blank.addEventListener('keydown', e => {
+      if(e.key === 'Backspace' || e.key === 'Delete'){
+        e.preventDefault();
+        const srcLine = parseInt(blank.dataset.srcLine);
+        const ta = document.getElementById('form-lyrics');
+        const lines = ta.value.split('\n');
+        lines.splice(srcLine, 1);
+        ta.value = lines.join('\n');
+        veSelectedLine = Math.max(0, veSelectedLine - 1);
+        veRender();
+      }
+    });
+    blank.addEventListener('focus', () => { veActiveChord = null; });
   });
 
   // Tap on non-lyric areas: keep keyboard by refocusing current/nearest lyric row
   display.addEventListener('touchstart', e => {
-    // If tapping directly on a lyric row, let it handle itself
+    // If tapping directly on a lyric row or blank line, let it handle itself
     if(e.target.closest('.ve-lyric-row')) return;
+    if(e.target.closest('.ve-blank-line')) return;
     // If tapping a chord span, don't steal focus
     if(e.target.closest('.ve-chord-span')) return;
     // Otherwise find the nearest lyric row and focus it
     e.preventDefault();
     const rows = display.querySelectorAll('.ve-lyric-row');
     if(!rows.length) return;
-    // Find closest row by vertical position
     const touchY = e.touches[0].clientY;
     let nearest = rows[0];
     let minDist = Infinity;
@@ -2167,13 +2221,19 @@ function veRender(){
     display.querySelectorAll('.ve-lyric-row').forEach(r => r.classList.toggle('ve-selected', r === nearest));
   }, {passive:false});
 
-  // Tap outside chords dismisses active chord
-  display.addEventListener('click', e => {
-    if(!e.target.closest('.ve-chord-span') && veActiveChord){
+  // Tap outside chord span — dismiss active chord (remove popup)
+  display.addEventListener('touchstart', e => {
+    if(veActiveChord && !e.target.closest('.ve-chord-span') && !e.target.closest('.ve-chord-tick')){
+      e.preventDefault();
       veActiveChord = null;
+      const savedSelected = veSelectedLine;
       veRender();
+      veSelectedLine = savedSelected;
+      // Re-focus
+      const rows = display.querySelectorAll('.ve-lyric-row');
+      if(savedSelected !== null && rows[savedSelected]) rows[savedSelected].focus();
     }
-  }, {once:true});
+  }, {passive:false});
 }
 
 // Delete a chord from a line
