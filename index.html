@@ -186,10 +186,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .lyric-pair{display:flex;flex-wrap:wrap;align-items:flex-end;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
 .lyric-seg{display:inline-flex;flex-direction:column;align-items:flex-start}
 /* font sizes are em so they scale with #song-lyrics font-size */
-.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:pre;min-height:1.1em;cursor:pointer;transition:color var(--t)}
+.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:pre-wrap;min-height:1.1em;cursor:pointer;transition:color var(--t)}
 .seg-chord:hover{color:var(--accent)}
 .seg-chord.empty{visibility:hidden}
-.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre}
+.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
 .spacer-line{height:10px}
 
 /* ── INTEGRATED SCROLL PILL — always visible bottom-right in song view ── */
