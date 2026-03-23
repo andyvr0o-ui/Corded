@@ -3335,10 +3335,8 @@ function initDriveClient(){
   });
 
   // Don't auto sign-in on startup — avoids popup on every app launch
-  // Sync happens automatically when app goes to background (visibilitychange)
-  // or when user taps the sign-in button
   if(driveSyncEnabled){
-    updateDriveStatus('Drive sync ready — will sync on close', true);
+    updateDriveStatus('Tap to reconnect Drive', false);
   }
 }
 
@@ -3348,13 +3346,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(!driveTokenClient){ toast('Google not loaded yet, try again'); return; }
     // On explicit sign-in, use select_account to let user choose
     // then we store their hint for future silent logins
-    driveTokenClient.requestAccessToken({ prompt: 'select_account' });
+    driveTokenClient.requestAccessToken({ prompt: 'consent' });
   });
   document.getElementById('drive-signout-btn').addEventListener('click', ()=>{
+    const tokenToRevoke = driveAccessToken;
     driveAccessToken = null;
     driveSyncEnabled = false;
+    driveHint = '';
     localStorage.removeItem('cb_drive_sync');
-    google.accounts.oauth2.revoke(driveAccessToken, ()=>{});
+    localStorage.removeItem('cb_drive_hint');
+    saveDrivePrefs();
+    if(tokenToRevoke && window.google) google.accounts.oauth2.revoke(tokenToRevoke, ()=>{});
     updateDriveStatus('Signed out', false);
   });
 });
