@@ -572,7 +572,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 #swipe-prev,#swipe-next{color:var(--chord);font-size:14px}
 #swipe-pos{color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px}
 </style>
-  <script src="https://accounts.google.com/gsi/client"></script>
+  <!-- Google GIS removed — using File System Access API instead -->
 </head>
 <body>
 <div id="app">
@@ -739,15 +739,15 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     </div>
   </div>
 
-  <!-- Google Drive Sync -->
+  <!-- Auto Backup -->
   <div class="drawer-section">
-    <h3>Google Drive Sync</h3>
-    <div id="drive-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">Not connected</div>
+    <h3>Auto Backup</h3>
+    <div id="backup-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">No backup folder set</div>
     <div style="display:flex;flex-direction:column;gap:7px">
-      <button class="drawer-btn" id="drive-signin-btn">Sign in with Google</button>
-      <button class="drawer-btn" id="drive-backup-btn" style="display:none">↑ Backup now</button>
-      <button class="drawer-btn" id="drive-restore-btn" style="display:none">↓ Restore from Drive</button>
-      <button class="drawer-btn" id="drive-signout-btn" style="display:none;color:var(--text3)">Sign out</button>
+      <button class="drawer-btn" id="backup-choose-btn">📁 Choose backup folder</button>
+      <button class="drawer-btn" id="backup-now-btn" style="display:none">↑ Backup now</button>
+      <button class="drawer-btn" id="backup-restore-btn" style="display:none">↓ Restore from backup</button>
+      <button class="drawer-btn" id="backup-forget-btn" style="display:none;color:var(--text3)">Forget folder</button>
     </div>
   </div>
   <!-- Data -->
@@ -3198,222 +3198,183 @@ if(!window.matchMedia('(display-mode: standalone)').matches && !localStorage.get
 }
 </script>
 <script>
-// ===== GOOGLE DRIVE AUTO-SYNC =====
-const GDRIVE_CLIENT_ID = '849890350871-bij1gbldokm26qrmhk21ltq12pv8i7i2.apps.googleusercontent.com';
-const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+// ===== AUTO BACKUP (File System Access API) =====
 const BACKUP_FILENAME = 'corded-backup.json';
+const DB_NAME = 'corded-fs';
+const DB_STORE = 'handles';
 
-let driveAccessToken = null;
-let driveTokenClient = null;
-let driveFileId = null;
-let driveSyncEnabled = localStorage.getItem('cb_drive_sync') === '1';
+let backupDirHandle = null;
 
-function updateDriveStatus(msg, signedIn){
-  const el = document.getElementById('drive-status');
-  if(el) el.textContent = msg;
-  const signInBtn  = document.getElementById('drive-signin-btn');
-  const signOutBtn = document.getElementById('drive-signout-btn');
-  const backupBtn  = document.getElementById('drive-backup-btn');
-  const restoreBtn = document.getElementById('drive-restore-btn');
-  if(signInBtn)  signInBtn.style.display  = signedIn ? 'none' : '';
-  if(signOutBtn) signOutBtn.style.display = signedIn ? '' : 'none';
-  if(backupBtn)  backupBtn.style.display  = signedIn ? '' : 'none';
-  if(restoreBtn) restoreBtn.style.display = signedIn ? '' : 'none';
+// Store/retrieve directory handle in IndexedDB (persists across sessions)
+function openDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e);
+  });
 }
 
-// Find or create the backup file on Drive
-async function getDriveFileId(){
-  if(driveFileId) return driveFileId;
-  const res = await fetch(
-    'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%22' + BACKUP_FILENAME + '%22',
-    { headers: { Authorization: 'Bearer ' + driveAccessToken } }
-  );
-  const data = await res.json();
-  if(data.files && data.files.length > 0){
-    driveFileId = data.files[0].id;
-  }
-  return driveFileId;
+async function saveDirHandle(handle){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).put(handle, 'backupDir');
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
 }
 
-// Upload data to Drive
-async function driveBackup(){
-  if(!driveAccessToken) return;
+async function loadDirHandle(){
   try {
-    const payload = JSON.stringify({ songs, setlists, version: Date.now() });
-    const fileId = await getDriveFileId();
-    if(fileId){
-      // Update existing file
-      await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
-        method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + driveAccessToken, 'Content-Type': 'application/json' },
-        body: payload
-      });
-    } else {
-      // Create new file in appDataFolder
-      const meta = { name: BACKUP_FILENAME, parents: ['appDataFolder'] };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-      form.append('file', new Blob([payload], { type: 'application/json' }));
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + driveAccessToken },
-        body: form
-      });
-      const created = await res.json();
-      driveFileId = created.id;
-    }
-    updateDriveStatus('✓ Synced ' + new Date().toLocaleTimeString(), true);
-  } catch(e){
-    console.error('Drive backup failed:', e);
-    updateDriveStatus('Sync failed — will retry', true);
-  }
-}
-
-// Download and merge data from Drive
-async function driveRestore(){
-  if(!driveAccessToken) return;
-  try {
-    const fileId = await getDriveFileId();
-    if(!fileId){ driveBackup(); return; } // No backup yet — create one
-    const res = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
-      headers: { Authorization: 'Bearer ' + driveAccessToken }
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get('backupDir');
+      req.onsuccess = e => resolve(e.target.result || null);
+      req.onerror = () => resolve(null);
     });
-    const data = await res.json();
+  } catch(e){ return null; }
+}
+
+async function deleteDirHandle(){
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).delete('backupDir');
+    tx.oncomplete = resolve;
+    tx.onerror = resolve;
+  });
+}
+
+function updateBackupStatus(msg, hasFolder){
+  const el = document.getElementById('backup-status');
+  if(el) el.textContent = msg;
+  const nowBtn     = document.getElementById('backup-now-btn');
+  const restoreBtn = document.getElementById('backup-restore-btn');
+  const forgetBtn  = document.getElementById('backup-forget-btn');
+  const chooseBtn  = document.getElementById('backup-choose-btn');
+  if(nowBtn)     nowBtn.style.display     = hasFolder ? '' : 'none';
+  if(restoreBtn) restoreBtn.style.display = hasFolder ? '' : 'none';
+  if(forgetBtn)  forgetBtn.style.display  = hasFolder ? '' : 'none';
+  if(chooseBtn)  chooseBtn.textContent    = hasFolder ? '📁 Change folder' : '📁 Choose backup folder';
+}
+
+async function doBackup(){
+  if(!backupDirHandle) return;
+  try {
+    // Verify permission still granted
+    const perm = await backupDirHandle.queryPermission({ mode: 'readwrite' });
+    if(perm !== 'granted'){
+      const req = await backupDirHandle.requestPermission({ mode: 'readwrite' });
+      if(req !== 'granted'){ updateBackupStatus('Permission denied — tap Choose folder', false); return; }
+    }
+    const fileHandle = await backupDirHandle.getFileHandle(BACKUP_FILENAME, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify({ songs, setlists, version: Date.now() }));
+    await writable.close();
+    const now = new Date().toLocaleTimeString();
+    updateBackupStatus('✓ Backed up at ' + now, true);
+  } catch(e){
+    console.error('Backup failed:', e);
+    updateBackupStatus('Backup failed — ' + e.message, true);
+  }
+}
+
+async function doRestore(){
+  if(!backupDirHandle) return;
+  try {
+    const perm = await backupDirHandle.queryPermission({ mode: 'read' });
+    if(perm !== 'granted'){
+      const req = await backupDirHandle.requestPermission({ mode: 'read' });
+      if(req !== 'granted'){ updateBackupStatus('Permission denied', true); return; }
+    }
+    const fileHandle = await backupDirHandle.getFileHandle(BACKUP_FILENAME);
+    const file = await fileHandle.getFile();
+    const text = await file.text();
+    const data = JSON.parse(text);
     if(data.songs && Array.isArray(data.songs)){
-      // Merge: combine local and drive songs, Drive wins on conflict (by id)
-      const localIds = new Set(songs.map(s=>s.id));
-      const driveOnly = data.songs.filter(s=>!localIds.has(s.id));
-      songs = [...songs, ...driveOnly];
-      // Merge setlists similarly
-      if(data.setlists && Array.isArray(data.setlists)){
-        const localSlIds = new Set(setlists.map(s=>s.id));
-        const driveOnlySl = data.setlists.filter(s=>!localSlIds.has(s.id));
-        setlists = [...setlists, ...driveOnlySl];
-        if(!setlists.length) setlists = [{id:'1',name:'Sunday Morning',songs:[]}];
-        activeSetlistIdx = 0;
-      }
+      songs = data.songs;
+      if(data.setlists && Array.isArray(data.setlists)) setlists = data.setlists;
+      if(!setlists.length) setlists = [{id:'1',name:'Sunday Morning',songs:[]}];
+      activeSetlistIdx = 0;
       save();
       renderLibrary();
       renderSetlist();
-      updateDriveStatus('✓ Restored ' + data.songs.length + ' songs', true);
+      toast('Restored ' + songs.length + ' songs from backup');
+      updateBackupStatus('✓ Restored ' + songs.length + ' songs', true);
     }
   } catch(e){
-    console.error('Drive restore failed:', e);
+    if(e.name === 'NotFoundError'){
+      updateBackupStatus('No backup file found in this folder yet', true);
+    } else {
+      updateBackupStatus('Restore failed — ' + e.message, true);
+    }
   }
 }
 
-function initDriveClient(){
-  if(!window.google) return;
-
-  driveTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GDRIVE_CLIENT_ID,
-    scope: GDRIVE_SCOPE,
-    // hint tells Google which account to use — suppresses account picker
-    hint: driveHint,
-    callback: async (resp) => {
-      if(resp.error){
-        if(resp.error === 'immediate_failed' || resp.error === 'user_logged_out'){
-          updateDriveStatus('Tap to reconnect Drive', false);
-        } else {
-          updateDriveStatus('Sign in failed — tap to retry', false);
-        }
-        return;
-      }
-      driveAccessToken = resp.access_token;
-      driveSyncEnabled = true;
-      localStorage.setItem('cb_drive_sync', '1');
-      // Decode email from token to use as hint for future silent logins
-      try {
-        const payload = JSON.parse(atob(resp.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-        if(payload.email){ driveHint=payload.email; localStorage.setItem('cb_drive_hint',payload.email); }
-      } catch(e){ /* token not a JWT — skip */ }
-      // Schedule silent token refresh before expiry
-      const refreshIn = Math.max(0, (resp.expires_in - 120)) * 1000;
-      setTimeout(()=>{
-        if(driveSyncEnabled && driveTokenClient){
-          driveTokenClient.requestAccessToken({ prompt: '' });
-        }
-      }, refreshIn);
-      updateDriveStatus('Syncing…', true);
-      await driveRestore();
-      driveBackup();
+async function chooseBackupFolder(){
+  if(!('showDirectoryPicker' in window)){
+    toast('Your browser does not support folder selection. Try Chrome.');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'corded-backup' });
+    backupDirHandle = handle;
+    await saveDirHandle(handle);
+    updateBackupStatus('✓ Folder: ' + handle.name, true);
+    // Backup immediately
+    await doBackup();
+  } catch(e){
+    if(e.name !== 'AbortError'){
+      toast('Could not access folder: ' + e.message);
     }
-  });
+  }
+}
 
-  // Don't auto sign-in on startup — avoids popup on every app launch
-  if(driveSyncEnabled){
-    updateDriveStatus('Tap "Sign in" to reconnect Drive', false);
-  } else {
-    updateDriveStatus('Not connected', false);
+async function initBackup(){
+  const handle = await loadDirHandle();
+  if(!handle){ updateBackupStatus('No backup folder set', false); return; }
+  backupDirHandle = handle;
+  // Check permission
+  try {
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if(perm === 'granted'){
+      updateBackupStatus('✓ Folder: ' + handle.name, true);
+      // Auto-restore on startup if backup file exists
+      await doRestore();
+      // Then backup current state
+      await doBackup();
+    } else {
+      updateBackupStatus('Tap "Backup now" to reconnect folder', true);
+    }
+  } catch(e){
+    updateBackupStatus('Folder not accessible', false);
   }
 }
 
 // Wire buttons
 document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('drive-signin-btn').addEventListener('click', ()=>{
-    if(!driveTokenClient){
-      // Google not ready yet — try to init then sign in
-      updateDriveStatus('Connecting…', false);
-      let tries = 0;
-      const waitForGoogle = setInterval(()=>{
-        tries++;
-        if(window.google && !driveTokenClient){ initDriveClient(); }
-        if(driveTokenClient){
-          clearInterval(waitForGoogle);
-          driveTokenClient.requestAccessToken({ prompt: 'consent' });
-        } else if(tries > 10){
-          clearInterval(waitForGoogle);
-          updateDriveStatus('Could not load Google — check internet connection', false);
-        }
-      }, 500);
-      return;
-    }
-    driveTokenClient.requestAccessToken({ prompt: 'consent' });
-  });
-  const backupBtn = document.getElementById('drive-backup-btn');
-  const restoreBtn = document.getElementById('drive-restore-btn');
-  if(backupBtn) backupBtn.addEventListener('click', ()=>{ driveBackup(); toast('Backing up…'); });
-  if(restoreBtn) restoreBtn.addEventListener('click', ()=>{ driveRestore(); toast('Restoring…'); });
-
-  document.getElementById('drive-signout-btn').addEventListener('click', ()=>{
-    const tokenToRevoke = driveAccessToken;
-    driveAccessToken = null;
-    driveSyncEnabled = false;
-    driveHint = '';
-    localStorage.removeItem('cb_drive_sync');
-    localStorage.removeItem('cb_drive_hint');
-    saveDrivePrefs();
-    if(tokenToRevoke && window.google) google.accounts.oauth2.revoke(tokenToRevoke, ()=>{});
-    updateDriveStatus('Signed out', false);
+  document.getElementById('backup-choose-btn').addEventListener('click', chooseBackupFolder);
+  document.getElementById('backup-now-btn').addEventListener('click', ()=>{ doBackup(); });
+  document.getElementById('backup-restore-btn').addEventListener('click', ()=>{ doRestore(); });
+  document.getElementById('backup-forget-btn').addEventListener('click', async ()=>{
+    backupDirHandle = null;
+    await deleteDirHandle();
+    updateBackupStatus('No backup folder set', false);
+    toast('Backup folder forgotten');
   });
 });
 
-// Auto backup when app goes to background — request token silently then backup
+// Auto backup when app goes to background
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'hidden' && driveSyncEnabled && driveTokenClient){
-    if(driveAccessToken){
-      driveBackup();
-    } else {
-      // Get token silently — if it fails nothing happens (no popup shown)
-      driveTokenClient.requestAccessToken({ prompt: '', hint: driveHint });
-      // Short delay to let token resolve before page hides
-      setTimeout(()=>{ if(driveAccessToken) driveBackup(); }, 1000);
-    }
+  if(document.visibilityState === 'hidden' && backupDirHandle){
+    doBackup();
   }
 });
 
-// Init when Google script loads
-window.addEventListener('load', ()=>{
-  if(window.google) initDriveClient();
-  else {
-    // Poll briefly for Google script to load
-    let attempts = 0;
-    const t = setInterval(()=>{
-      if(window.google){ clearInterval(t); initDriveClient(); }
-      if(++attempts > 40) clearInterval(t); // wait up to 20 seconds
-    }, 500);
-  }
-});
+// Init on load
+window.addEventListener('load', ()=>{ initBackup(); });
 </script>
 
 <script>
