@@ -572,7 +572,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 #swipe-prev,#swipe-next{color:var(--chord);font-size:14px}
 #swipe-pos{color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px}
 </style>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://accounts.google.com/gsi/client"></script>
 </head>
 <body>
 <div id="app">
@@ -3343,9 +3343,23 @@ function initDriveClient(){
 // Wire buttons
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('drive-signin-btn').addEventListener('click', ()=>{
-    if(!driveTokenClient){ toast('Google not loaded yet, try again'); return; }
-    // On explicit sign-in, use select_account to let user choose
-    // then we store their hint for future silent logins
+    if(!driveTokenClient){
+      // Google not ready yet — try to init then sign in
+      updateDriveStatus('Loading Google…', false);
+      let tries = 0;
+      const waitForGoogle = setInterval(()=>{
+        tries++;
+        if(window.google && !driveTokenClient){ initDriveClient(); }
+        if(driveTokenClient){
+          clearInterval(waitForGoogle);
+          driveTokenClient.requestAccessToken({ prompt: 'consent' });
+        } else if(tries > 10){
+          clearInterval(waitForGoogle);
+          updateDriveStatus('Could not load Google — check internet connection', false);
+        }
+      }, 500);
+      return;
+    }
     driveTokenClient.requestAccessToken({ prompt: 'consent' });
   });
   document.getElementById('drive-signout-btn').addEventListener('click', ()=>{
@@ -3383,7 +3397,7 @@ window.addEventListener('load', ()=>{
     let attempts = 0;
     const t = setInterval(()=>{
       if(window.google){ clearInterval(t); initDriveClient(); }
-      if(++attempts > 20) clearInterval(t);
+      if(++attempts > 40) clearInterval(t); // wait up to 20 seconds
     }, 500);
   }
 });
