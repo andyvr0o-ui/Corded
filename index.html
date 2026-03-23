@@ -3336,21 +3336,46 @@ async function initBackup(){
   const handle = await loadDirHandle();
   if(!handle){ updateBackupStatus('No backup folder set', false); return; }
   backupDirHandle = handle;
-  // Check permission
   try {
     const perm = await handle.queryPermission({ mode: 'readwrite' });
     if(perm === 'granted'){
       updateBackupStatus('✓ Folder: ' + handle.name, true);
-      // Auto-restore on startup if backup file exists
       await doRestore();
-      // Then backup current state
       await doBackup();
     } else {
-      updateBackupStatus('Tap "Backup now" to reconnect folder', true);
+      // Permission not granted — show a banner tap-to-reconnect
+      updateBackupStatus('Tap to reconnect backup folder', true);
+      showReconnectBanner(handle);
     }
   } catch(e){
     updateBackupStatus('Folder not accessible', false);
   }
+}
+
+function showReconnectBanner(handle){
+  const nav = document.getElementById('top-nav');
+  if(!nav || document.getElementById('reconnect-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'reconnect-banner';
+  banner.style.cssText = 'background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;flex-shrink:0';
+  banner.innerHTML = '<span style="flex:1;color:var(--text2)">🔒 Tap to reconnect backup folder <b style="color:var(--accent)">' + (handle.name||'') + '</b></span><span style="color:var(--text3);font-size:18px">→</span>';
+  nav.insertAdjacentElement('afterend', banner);
+  banner.addEventListener('click', async ()=>{
+    try {
+      const perm = await handle.requestPermission({ mode: 'readwrite' });
+      if(perm === 'granted'){
+        banner.remove();
+        updateBackupStatus('✓ Folder: ' + handle.name, true);
+        await doRestore();
+        await doBackup();
+      } else {
+        banner.innerHTML = '<span style="flex:1;color:var(--danger)">Permission denied — choose a new folder in the menu</span><span id="reconnect-dismiss" style="color:var(--text3);padding:4px 8px;cursor:pointer">✕</span>';
+        document.getElementById('reconnect-dismiss').addEventListener('click', ()=>banner.remove());
+      }
+    } catch(e){
+      banner.remove();
+    }
+  });
 }
 
 // Wire buttons
