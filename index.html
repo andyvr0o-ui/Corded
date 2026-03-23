@@ -742,10 +742,12 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
   <!-- Google Drive Sync -->
   <div class="drawer-section">
     <h3>Google Drive Sync</h3>
-    <div id="drive-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">Not signed in</div>
+    <div id="drive-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">Not connected</div>
     <div style="display:flex;flex-direction:column;gap:7px">
       <button class="drawer-btn" id="drive-signin-btn">Sign in with Google</button>
-      <button class="drawer-btn" id="drive-signout-btn" style="display:none">Sign out</button>
+      <button class="drawer-btn" id="drive-backup-btn" style="display:none">↑ Backup now</button>
+      <button class="drawer-btn" id="drive-restore-btn" style="display:none">↓ Restore from Drive</button>
+      <button class="drawer-btn" id="drive-signout-btn" style="display:none;color:var(--text3)">Sign out</button>
     </div>
   </div>
   <!-- Data -->
@@ -3209,10 +3211,14 @@ let driveSyncEnabled = localStorage.getItem('cb_drive_sync') === '1';
 function updateDriveStatus(msg, signedIn){
   const el = document.getElementById('drive-status');
   if(el) el.textContent = msg;
-  const signInBtn = document.getElementById('drive-signin-btn');
+  const signInBtn  = document.getElementById('drive-signin-btn');
   const signOutBtn = document.getElementById('drive-signout-btn');
-  if(signInBtn) signInBtn.style.display = signedIn ? 'none' : '';
+  const backupBtn  = document.getElementById('drive-backup-btn');
+  const restoreBtn = document.getElementById('drive-restore-btn');
+  if(signInBtn)  signInBtn.style.display  = signedIn ? 'none' : '';
   if(signOutBtn) signOutBtn.style.display = signedIn ? '' : 'none';
+  if(backupBtn)  backupBtn.style.display  = signedIn ? '' : 'none';
+  if(restoreBtn) restoreBtn.style.display = signedIn ? '' : 'none';
 }
 
 // Find or create the backup file on Drive
@@ -3336,7 +3342,9 @@ function initDriveClient(){
 
   // Don't auto sign-in on startup — avoids popup on every app launch
   if(driveSyncEnabled){
-    updateDriveStatus('Tap to reconnect Drive', false);
+    updateDriveStatus('Tap "Sign in" to reconnect Drive', false);
+  } else {
+    updateDriveStatus('Not connected', false);
   }
 }
 
@@ -3345,7 +3353,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('drive-signin-btn').addEventListener('click', ()=>{
     if(!driveTokenClient){
       // Google not ready yet — try to init then sign in
-      updateDriveStatus('Loading Google…', false);
+      updateDriveStatus('Connecting…', false);
       let tries = 0;
       const waitForGoogle = setInterval(()=>{
         tries++;
@@ -3362,6 +3370,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
     driveTokenClient.requestAccessToken({ prompt: 'consent' });
   });
+  const backupBtn = document.getElementById('drive-backup-btn');
+  const restoreBtn = document.getElementById('drive-restore-btn');
+  if(backupBtn) backupBtn.addEventListener('click', ()=>{ driveBackup(); toast('Backing up…'); });
+  if(restoreBtn) restoreBtn.addEventListener('click', ()=>{ driveRestore(); toast('Restoring…'); });
+
   document.getElementById('drive-signout-btn').addEventListener('click', ()=>{
     const tokenToRevoke = driveAccessToken;
     driveAccessToken = null;
