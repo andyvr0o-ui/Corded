@@ -1037,27 +1037,27 @@ function tagEmoji(t){return t==='worship'?'🙌':t==='hymn'?'📖':'🎵';}
 function activeSetlist(){return setlists.length?setlists[Math.min(activeSetlistIdx,setlists.length-1)]:null;}
 
 // ===== TRANSPOSE =====
-function transposeNote(note, steps){
+function transposeNote(note, steps, forceSharp){
   const si=SHARP_SCALE.indexOf(note), fi=FLAT_SCALE.indexOf(note);
   const idx=si!==-1?si:fi; if(idx===-1) return note;
-  const scale=useFlats?FLAT_SCALE:SHARP_SCALE;
+  const scale=(forceSharp||!useFlats)?SHARP_SCALE:FLAT_SCALE;
   return scale[((idx+steps)%12+12)%12];
 }
 function transposeChord(chord,steps){
-  // Handle slash chords e.g. D/F# → both root and bass transposed
+  // Handle slash chords e.g. D/F# → root follows key preference, bass note always uses sharps
   const slashIdx = chord.indexOf('/');
   if(slashIdx !== -1){
     const left  = chord.slice(0, slashIdx);
     const right = chord.slice(slashIdx + 1);
     const ml = left.match(/^([A-G][#b]?)(.*)/);
     const mr = right.match(/^([A-G][#b]?)(.*)/);
-    const transLeft  = ml ? transposeNote(ml[1],steps) + ml[2] : left;
-    const transRight = mr ? transposeNote(mr[1],steps) + mr[2] : right;
+    const transLeft  = ml ? transposeNote(ml[1],steps,false) + ml[2] : left;
+    const transRight = mr ? transposeNote(mr[1],steps,true)  + mr[2] : right; // always sharp
     return transLeft + '/' + transRight;
   }
   const m=chord.match(/^([A-G][#b]?)(.*)/);if(!m)return chord;
   const root=m[1],suffix=m[2];
-  return transposeNote(root,steps)+suffix;
+  return transposeNote(root,steps,false)+suffix;
 }
 
 // ===== RENDER SONG — TWO-ROW APPROACH =====
@@ -1925,7 +1925,22 @@ document.getElementById('export-btn').addEventListener('click',()=>{
 document.getElementById('clear-btn').addEventListener('click',()=>{if(confirm('Clear all songs?')){songs=[];setlists=[{id:'1',name:'Sunday Morning',songs:[]}];activeSetlistIdx=0;save();renderLibrary();renderSetlist();toast('Cleared');closeDrawer();}});
 
 // ===== CHORD BUILDER =====
-function addRecent(chord){recentChords=[chord,...recentChords.filter(c=>c!==chord)].slice(0,14);save();}
+// Normalise slash chord bass note to always use sharps (D/Gb → D/F#)
+function normaliseSlash(chord){
+  const slashIdx = chord.indexOf('/');
+  if(slashIdx === -1) return chord;
+  const left  = chord.slice(0, slashIdx);
+  const right = chord.slice(slashIdx + 1);
+  const mr = right.match(/^([A-G][#b]?)(.*)/);
+  if(!mr) return chord;
+  const fi = FLAT_SCALE.indexOf(mr[1]);
+  if(fi === -1) return chord; // already sharp or natural
+  return left + '/' + SHARP_SCALE[fi] + mr[2];
+}
+function addRecent(chord){
+  chord = normaliseSlash(chord);
+  recentChords=[chord,...recentChords.filter(c=>c!==chord)].slice(0,14);save();
+}
 
 // ── CHORD BAR STATE ──
 const CHORD_ROOTS = ['C','D','E','F','G','A','B'];
@@ -2605,6 +2620,7 @@ function isChordOnlyLine(line){
 }
 
 function insertChord(chord){
+  chord = normaliseSlash(chord);
   if(editorMode === 'chart'){
     const ct = document.getElementById('chart-textarea');
     const selStart = ct.selectionStart;
