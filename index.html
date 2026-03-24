@@ -189,7 +189,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:pre-wrap;min-height:1.1em;cursor:pointer;transition:color var(--t)}
 .seg-chord:hover{color:var(--accent)}
 .seg-chord.empty{visibility:hidden}
-.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
+.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre}
 .spacer-line{height:10px}
 
 /* ── INTEGRATED SCROLL PILL — always visible bottom-right in song view ── */
@@ -1067,21 +1067,26 @@ function renderSongView(){
     for(const seg of p.segs){
       const c=seg.chord||'';
       const l=seg.lyric||'';
-      // Pad the shorter one so column widths match
-      const w=Math.max(c.length,l.length);
-      const cp=c.padEnd(w);
-      const lp=l.padEnd(w);
-      if(c){
-        html+='<span class="lyric-seg">'
-          +'<span class="seg-chord" data-chord="'+esc(c)+'">'+esc(cp)+'</span>'
-          +'<span class="seg-lyric">'+esc(lp)+'</span>'
-          +'</span>';
-      } else {
-        html+='<span class="lyric-seg">'
-          +'<span class="seg-chord empty">'+esc(cp)+'</span>'
-          +'<span class="seg-lyric">'+esc(lp)+'</span>'
-          +'</span>';
-      }
+      // Split lyric into words so each word wraps as a whole unit
+      // First word gets the chord, subsequent words get empty chord placeholder
+      const words = l.match(/\S+\s*/g) || (l ? [l] : ['']);
+      words.forEach((word, wi)=>{
+        const chord = wi===0 ? c : '';
+        const w = Math.max(chord.length, word.length);
+        const cp = chord.padEnd(w);
+        const lp = word.padEnd(w);
+        if(chord){
+          html+='<span class="lyric-seg">'
+            +'<span class="seg-chord" data-chord="'+esc(c)+'">'+esc(cp)+'</span>'
+            +'<span class="seg-lyric">'+esc(lp)+'</span>'
+            +'</span>';
+        } else {
+          html+='<span class="lyric-seg">'
+            +'<span class="seg-chord empty">'+esc(cp)+'</span>'
+            +'<span class="seg-lyric">'+esc(lp)+'</span>'
+            +'</span>';
+        }
+      });
     }
     html+='</div>';
   }
