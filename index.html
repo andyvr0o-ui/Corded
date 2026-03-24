@@ -2043,8 +2043,8 @@ function renderBuilderSteps(){
         window._suppressFieldExpand = true;
         setTimeout(()=>{ window._suppressFieldExpand = false; }, 600);
       },{passive:false});
-      b.addEventListener('touchend', e=>{ e.preventDefault(); onClick(); cbUpdateStates(); },{passive:false});
-      b.addEventListener('click', ()=>{ onClick(); cbUpdateStates(); });
+      b.addEventListener('touchend', e=>{ e.preventDefault(); onClick(); cbUpdate(); },{passive:false});
+      b.addEventListener('click', ()=>{ onClick(); cbUpdate(); });
       return b;
     }
 
