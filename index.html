@@ -2027,6 +2027,13 @@ function openRootPanel(root, btn){
   activeRoot = root;
   document.querySelectorAll('.chord-root-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // Close keyboard by blurring active textarea
+  const ta = document.getElementById('form-lyrics');
+  const ct = document.getElementById('chart-textarea');
+  if(document.activeElement===ta||document.activeElement===ct){
+    chordBarLastCursor = document.activeElement.selectionStart;
+    document.activeElement.blur();
+  }
   buildRootPanel(root, root);
   document.getElementById('chord-root-panel').style.display = 'block';
 }
@@ -2645,18 +2652,25 @@ function insertChord(chord){
 // When switching from ChordPro to chart, sync is handled by setEditorMode
 // When switching from chart to ChordPro, sync is handled by setEditorMode
 // Save always reads from the correct source
-['mode-chart','mode-chordpro'].forEach(id=>{
+[['mode-chart','chart'],['mode-chordpro','chordpro']].forEach(([id,mode])=>{
   const btn = document.getElementById(id);
   if(!btn) return;
   btn.addEventListener('mousedown', e=>e.preventDefault());
+  let tMoved=false;
   btn.addEventListener('touchstart', e=>{
     e.preventDefault();
+    tMoved=false;
     window._suppressFieldExpand = true;
     setTimeout(()=>{ window._suppressFieldExpand = false; }, 600);
   },{passive:false});
+  btn.addEventListener('touchmove', ()=>{ tMoved=true; },{passive:true});
+  btn.addEventListener('touchend', e=>{
+    e.preventDefault();
+    if(!tMoved && editorMode!==mode) setEditorMode(mode);
+  },{passive:false});
+  // Desktop fallback
+  btn.addEventListener('click',()=>{ if(editorMode!==mode) setEditorMode(mode); });
 });
-document.getElementById('mode-chart').addEventListener('click',()=>{ if(editorMode!=='chart') setEditorMode('chart'); });
-document.getElementById('mode-chordpro').addEventListener('click',()=>{ if(editorMode!=='chordpro') setEditorMode('chordpro'); });
 document.getElementById('form-lyrics').addEventListener('input',()=>{ /* raw mode — value kept directly */ });
 
 
@@ -3402,20 +3416,34 @@ document.getElementById('speed-val') && (document.getElementById('speed-val').te
     const vpt = vp ? vp.offsetTop : 0;
 
     const overlay = document.getElementById('modal-overlay');
-    if(overlay && overlay.classList.contains('open')){
-      overlay.style.height = vph + 'px';
-      overlay.style.top = vpt + 'px';
-    }
+    if(!overlay || !overlay.classList.contains('open')) return;
+
+    overlay.style.height = vph + 'px';
+    overlay.style.top = vpt + 'px';
+
+    const screenH = window.screen.height;
+    const keyboardOpen = vph < screenH * 0.72;
 
     // Hide fields when keyboard is open
-    // Don't expand if a chord bar button was just tapped (suppresses flicker)
     const fields = document.getElementById('modal-fields');
-    if(fields && overlay && overlay.classList.contains('open') && !window._suppressFieldExpand){
-      const screenH = window.screen.height;
-      const keyboardOpen = vph < screenH * 0.72;
+    if(fields && !window._suppressFieldExpand){
       fields.style.maxHeight = keyboardOpen ? '0' : '300px';
       fields.style.opacity   = keyboardOpen ? '0' : '1';
       fields.style.borderBottomWidth = keyboardOpen ? '0' : '';
+    }
+
+    // Size textarea to fit exactly between chord bar and bottom of viewport
+    const topbar  = overlay.querySelector('[style*="border-bottom"]');
+    const chordWrap = document.getElementById('chord-bar-wrap');
+    const ta = document.getElementById('chart-textarea');
+    const taP = document.getElementById('form-lyrics');
+    if(keyboardOpen && chordWrap){
+      const topbarH  = topbar  ? topbar.getBoundingClientRect().height  : 56;
+      const chordH   = chordWrap.getBoundingClientRect().height;
+      const available = vph - topbarH - chordH;
+      [ta, taP].forEach(el=>{ if(el) el.style.height = Math.max(80, available) + 'px'; });
+    } else {
+      [ta, taP].forEach(el=>{ if(el) el.style.height = ''; });
     }
   }
   if(window.visualViewport){
