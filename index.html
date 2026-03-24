@@ -1037,14 +1037,27 @@ function tagEmoji(t){return t==='worship'?'🙌':t==='hymn'?'📖':'🎵';}
 function activeSetlist(){return setlists.length?setlists[Math.min(activeSetlistIdx,setlists.length-1)]:null;}
 
 // ===== TRANSPOSE =====
+function transposeNote(note, steps){
+  const si=SHARP_SCALE.indexOf(note), fi=FLAT_SCALE.indexOf(note);
+  const idx=si!==-1?si:fi; if(idx===-1) return note;
+  const scale=useFlats?FLAT_SCALE:SHARP_SCALE;
+  return scale[((idx+steps)%12+12)%12];
+}
 function transposeChord(chord,steps){
+  // Handle slash chords e.g. D/F# → both root and bass transposed
+  const slashIdx = chord.indexOf('/');
+  if(slashIdx !== -1){
+    const left  = chord.slice(0, slashIdx);
+    const right = chord.slice(slashIdx + 1);
+    const ml = left.match(/^([A-G][#b]?)(.*)/);
+    const mr = right.match(/^([A-G][#b]?)(.*)/);
+    const transLeft  = ml ? transposeNote(ml[1],steps) + ml[2] : left;
+    const transRight = mr ? transposeNote(mr[1],steps) + mr[2] : right;
+    return transLeft + '/' + transRight;
+  }
   const m=chord.match(/^([A-G][#b]?)(.*)/);if(!m)return chord;
   const root=m[1],suffix=m[2];
-  const si=SHARP_SCALE.indexOf(root),fi=FLAT_SCALE.indexOf(root);
-  const idx=si!==-1?si:fi;if(idx===-1)return chord;
-  const scale=useFlats?FLAT_SCALE:SHARP_SCALE;
-  // Always normalize through scale — fixes A#→Bb when useFlats=true, even at steps=0
-  return scale[((idx+steps)%12+12)%12]+suffix;
+  return transposeNote(root,steps)+suffix;
 }
 
 // ===== RENDER SONG — TWO-ROW APPROACH =====
@@ -2471,6 +2484,12 @@ function buildKeyDropdown(){
       }
       selectedKey = newKey;
       label.textContent = newKey;
+      // Update song key immediately so song view reflects new key
+      if(editingId){
+        const idx=songs.findIndex(s=>s.id===editingId);
+        if(idx!==-1){ songs[idx].key=newKey; if(currentSong&&currentSong.id===editingId) currentSong.key=newKey; }
+        save();
+      }
       closeKeyDropdown();
       buildKeyDropdown();
       renderChordHistory();
