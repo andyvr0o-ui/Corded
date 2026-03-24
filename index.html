@@ -2408,11 +2408,10 @@ function chartToChordPro(chart){
     }
     // Blank
     if(!line.trim()){ out.push(''); i++; continue; }
-    // Is this a chord line? (contains only chord-like tokens and spaces)
-    // A chord line: no lowercase letters, contains at least one chord pattern
-    const isChordLine = /^[\sA-G][^\p{Ll}]*$/.test(line) &&
-      /[A-G](?:#|b)?(?:m|maj|min|aug|dim|sus|add)?[0-9]?/.test(line) &&
-      !/[a-z]{3,}/.test(line); // no word longer than 2 lowercase = not lyrics
+    // Is this a chord line? No 3+ lowercase letter sequences (real words), has at least one chord
+    const isChordLine = !/[a-z]{3,}/.test(line) &&
+      /[A-G](?:#|b)?(?:m|maj|min|aug|dim|sus|add|[0-9])*/.test(line) &&
+      !/[a-z]{2,}/.test(line.replace(/[A-G](?:#|b)?(?:m|maj|min|aug|dim|sus|add|[0-9])*/g,''));
 
     // Chord-only line: isChordLine and next line is blank or another chord line or end
     if(isChordLine && (i + 1 >= lines.length || lines[i+1].trim() === '' || isChordOnlyLine(lines[i+1]) || /^\{/.test(lines[i+1]))){
