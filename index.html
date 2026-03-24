@@ -1935,18 +1935,21 @@ let chordBarLastCursor = 0; // last cursor position in active textarea
 let autoBracket = false;
 
 function getChordsFromSong(){
-  // Extract unique chords from current ChordPro lyrics
+  // Extract unique chords from current ChordPro lyrics, transposed to current display key
   const ta = document.getElementById('form-lyrics');
   const ct = document.getElementById('chart-textarea');
   const raw = editorMode === 'chart'
     ? chartToChordPro(ct ? ct.value : '')
     : (ta ? ta.value : '');
+  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
+              - (typeof capo !== 'undefined' ? capo : 0);
   const found = new Set();
   const re = /\[([^\]]+)\]/g;
   let m;
   while((m = re.exec(raw)) !== null){
-    found.add(m[1].replace(/\d+/g, '').trim()); // strip transient numbers
-    found.add(m[1]);
+    const raw_chord = m[1];
+    const transposed = steps !== 0 ? transposeChord(raw_chord, steps) : raw_chord;
+    found.add(transposed);
   }
   return [...found].filter(c => c.length > 0).slice(0, 12);
 }
@@ -2140,8 +2143,10 @@ function renderChordHistory(){
   const bar = document.getElementById('chord-history-bar');
   if(!bar) return;
   bar.innerHTML = '';
-  const songChords = getChordsFromSong();
-  const recent = recentChords.slice(0,8);
+  const songChords = getChordsFromSong(); // already transposed
+  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
+              - (typeof capo !== 'undefined' ? capo : 0);
+  const recent = recentChords.slice(0,8).map(c=> steps !== 0 ? transposeChord(c, steps) : c);
   // Combine: song chords first, then recent (deduped)
   const seen = new Set();
   const all = [...songChords, ...recent].filter(c=>{ if(seen.has(c)) return false; seen.add(c); return true; }).slice(0,16);
