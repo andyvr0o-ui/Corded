@@ -1984,26 +1984,23 @@ function cbUpdate(){
 function updateBuilderGrid(chord){
   const grid = document.getElementById('chord-builder-grid');
   if(!grid) return;
-  // Show chords from ALL_CHORDS that start with current built chord
-  const prefix = chord.toLowerCase();
-  const matches = chord
-    ? ALL_CHORDS.filter(c=>c.toLowerCase().startsWith(prefix) && c !== chord).slice(0,18)
-    : [];
   grid.innerHTML = '';
-  // Always show the exact chord first if valid
-  if(chord && chord.length > 0){
-    const exact = document.createElement('button');
-    exact.className = 'chord-var-btn natural';
-    exact.textContent = chord;
-    exact.style.cssText = 'text-align:center;width:100%;outline:2px solid var(--accent)';
-    cbWireInsert(exact, chord);
-    grid.appendChild(exact);
-  }
-  matches.forEach(c=>{
+  if(!cbRoot) return;
+
+  // Build the exact root+accidental prefix (e.g. "D", "D#", "Db")
+  const exactPrefix = cbRoot + cbAccidental;
+
+  // Match chords where root+accidental matches exactly
+  // e.g. "D" matches D, Dm, D7 but NOT Db or D#
+  const re = new RegExp('^' + exactPrefix.replace('#','\\#') + '(?:[^#b]|$)');
+  const matches = ALL_CHORDS.filter(c=> re.test(c)).slice(0, 18);
+
+  // Show exact chord first with highlight, then rest
+  matches.forEach((c, idx)=>{
     const b = document.createElement('button');
-    b.className = 'chord-var-btn';
+    b.className = 'chord-var-btn' + (c === chord ? ' natural' : '');
     b.textContent = c;
-    b.style.cssText = 'text-align:center;width:100%';
+    b.style.cssText = 'text-align:center;width:100%' + (c === chord ? ';outline:2px solid var(--accent)' : '');
     cbWireInsert(b, c);
     grid.appendChild(b);
   });
