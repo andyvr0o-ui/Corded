@@ -167,7 +167,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .kd-btn.current{background:var(--chord);color:#0d0f14;border-color:var(--chord);font-weight:700}
 
 /* ── CHORD-ABOVE-LYRIC (two-row) ── */
-#song-lyrics{padding:16px 14px 160px;line-height:1;transition:transform .28s cubic-bezier(.4,0,.2,1)}
+#song-lyrics{padding:16px 14px 160px;line-height:1;transition:transform .28s cubic-bezier(.4,0,.2,1),font-size .15s ease}
 #song-lyrics.slide-out-left {transform:translateX(-100%);pointer-events:none}
 #song-lyrics.slide-out-right{transform:translateX( 100%);pointer-events:none}
 #song-lyrics.slide-in-left  {transform:translateX( 100%);transition:none}
@@ -1141,6 +1141,10 @@ function openSong(id, context){
   setlistContext=context||null;
   currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;showChords=true;
   scrollSpeed = currentSong.scrollSpeed ?? defaultScrollSpeed;
+  fontSize = currentSong.fontSize ?? parseInt(localStorage.getItem('cb_fontsize')||'15');
+  // Load per-song two-col, fall back to global preference
+  const globalTwoCol = localStorage.getItem('cb_twocol');
+  twoColMode = currentSong.twoCol !== undefined ? currentSong.twoCol : (globalTwoCol !== null ? globalTwoCol==='1' : window.innerWidth>=768);
   updatePillSpeed();
   document.getElementById('toggle-chords-btn').classList.remove('active');
   document.getElementById('toggle-chords-btn').textContent='♪ Chords';
@@ -1187,6 +1191,10 @@ function navigateSong(dir){
     if(!currentSong)return;
     setlistContext=setlistContext; // keep context
     currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;
+    scrollSpeed=currentSong.scrollSpeed??defaultScrollSpeed;
+    fontSize=currentSong.fontSize??parseInt(localStorage.getItem('cb_fontsize')||'15');
+    const _gtc=localStorage.getItem('cb_twocol');
+    twoColMode=currentSong.twoCol!==undefined?currentSong.twoCol:(_gtc!==null?_gtc==='1':window.innerWidth>=768);
     scrollSpeed=currentSong.scrollSpeed??defaultScrollSpeed;
     updatePillSpeed();
     renderSongView();
@@ -1413,7 +1421,8 @@ function stopScroll(){if(rafId)cancelAnimationFrame(rafId);rafId=null;lastTs=nul
       pinching = true;
       startDist = dist(e.touches);
       startFontSize = fontSize;
-      e.preventDefault(); // prevent scroll starting
+      lyricsEl.style.transition = 'transform .28s cubic-bezier(.4,0,.2,1)'; // no font-size transition during pinch
+      e.preventDefault();
     } else {
       pinching = false;
     }
@@ -1423,18 +1432,23 @@ function stopScroll(){if(rafId)cancelAnimationFrame(rafId);rafId=null;lastTs=nul
     if(!pinching || e.touches.length !== 2) return;
     e.preventDefault();
     const ratio = dist(e.touches) / startDist;
-    const newSize = Math.round(Math.min(32, Math.max(10, startFontSize * ratio)));
-    if(newSize !== fontSize){
-      fontSize = newSize;
-      lyricsEl.style.fontSize = fontSize + 'px';
-      document.getElementById('font-size-val').textContent = fontSize;
-    }
+    const newSize = Math.min(32, Math.max(10, startFontSize * ratio));
+    fontSize = Math.round(newSize); // keep integer for storage
+    lyricsEl.style.fontSize = newSize + 'px'; // use raw ratio for smooth display
+    document.getElementById('font-size-val').textContent = Math.round(newSize);
   },{passive:false});
 
   screen.addEventListener('touchend', e=>{
     if(!pinching) return;
     if(e.touches.length < 2){
       pinching = false;
+      lyricsEl.style.transition = ''; // restore transition
+      if(currentSong){
+        currentSong.fontSize=fontSize;
+        const idx=songs.findIndex(s=>s.id===currentSong.id);
+        if(idx!==-1)songs[idx].fontSize=fontSize;
+      }
+      localStorage.setItem('cb_fontsize',fontSize);
       save();
     }
   },{passive:true});
@@ -1451,7 +1465,15 @@ function applyTwoColMode(){
 
 document.getElementById('twocol-toggle').addEventListener('click',()=>{
   twoColMode = !twoColMode;
-  localStorage.setItem('cb_twocol', twoColMode ? '1' : '0');
+  // Save to current song
+  if(currentSong){
+    currentSong.twoCol = twoColMode;
+    const idx=songs.findIndex(s=>s.id===currentSong.id);
+    if(idx!==-1) songs[idx].twoCol = twoColMode;
+    save();
+  } else {
+    localStorage.setItem('cb_twocol', twoColMode ? '1' : '0');
+  }
   applyTwoColMode();
 });
 document.getElementById('chord-notes-toggle').addEventListener('click',function(){
@@ -1810,8 +1832,30 @@ document.getElementById('song-title-btn').addEventListener('click',openSongActio
 document.getElementById('song-action-overlay').addEventListener('click',closeSongActions);
 
 // ===== DRAWER SETTINGS =====
-document.getElementById('font-inc').addEventListener('click',()=>{fontSize=Math.min(24,fontSize+1);document.getElementById('font-size-val').textContent=fontSize;save();if(currentSong)document.getElementById('song-lyrics').style.fontSize=fontSize+'px';});
-document.getElementById('font-dec').addEventListener('click',()=>{fontSize=Math.max(10,fontSize-1);document.getElementById('font-size-val').textContent=fontSize;save();if(currentSong)document.getElementById('song-lyrics').style.fontSize=fontSize+'px';});
+document.getElementById('font-inc').addEventListener('click',()=>{
+  fontSize=Math.min(24,fontSize+1);
+  document.getElementById('font-size-val').textContent=fontSize;
+  if(currentSong){
+    currentSong.fontSize=fontSize;
+    const idx=songs.findIndex(s=>s.id===currentSong.id);
+    if(idx!==-1)songs[idx].fontSize=fontSize;
+    document.getElementById('song-lyrics').style.fontSize=fontSize+'px';
+  }
+  localStorage.setItem('cb_fontsize',fontSize);
+  save();
+});
+document.getElementById('font-dec').addEventListener('click',()=>{
+  fontSize=Math.max(10,fontSize-1);
+  document.getElementById('font-size-val').textContent=fontSize;
+  if(currentSong){
+    currentSong.fontSize=fontSize;
+    const idx=songs.findIndex(s=>s.id===currentSong.id);
+    if(idx!==-1)songs[idx].fontSize=fontSize;
+    document.getElementById('song-lyrics').style.fontSize=fontSize+'px';
+  }
+  localStorage.setItem('cb_fontsize',fontSize);
+  save();
+});
 document.getElementById('speed-inc').addEventListener('click',()=>{scrollSpeed=Math.min(20,scrollSpeed+1);defaultScrollSpeed=scrollSpeed;updatePillSpeed();if(autoscrolling)startScroll();});
 document.getElementById('speed-dec').addEventListener('click',()=>{scrollSpeed=Math.max(1,scrollSpeed-1);defaultScrollSpeed=scrollSpeed;updatePillSpeed();if(autoscrolling)startScroll(false);});
 document.getElementById('font-size-val').textContent=fontSize;
@@ -2170,11 +2214,20 @@ function chordProToChart(raw){
         // (handled implicitly — lyric just lags behind)
       }
     }
-    // Only output chord line if it has content
+    // Always output chord line if it has content
     if(chordLine.trim()){
       out.push(chordLine);
+      // Only push lyric line if it has actual content
+      // (chord-only lines have empty lyricLine — don't add a blank lyric row)
+      if(lyricLine.trim()){
+        out.push(lyricLine);
+      } else {
+        // Mark as chord-only with a special empty lyric line so chartToChordPro knows
+        out.push('');
+      }
+    } else if(lyricLine.trim()){
+      out.push(lyricLine);
     }
-    out.push(lyricLine);
   }
   return out.join('\n');
 }
@@ -2198,6 +2251,23 @@ function chartToChordPro(chart){
       /[A-G](?:#|b)?(?:m|maj|min|aug|dim|sus|add)?[0-9]?/.test(line) &&
       !/[a-z]{3,}/.test(line); // no word longer than 2 lowercase = not lyrics
 
+    // Chord-only line: isChordLine and next line is blank or another chord line or end
+    if(isChordLine && (i + 1 >= lines.length || lines[i+1].trim() === '' || isChordOnlyLine(lines[i+1]) || /^\{/.test(lines[i+1]))){
+      // Chord-only line — convert to [chord][chord]... with no lyric
+      const chords2 = [];
+      let ci2 = 0;
+      while(ci2 < line.length){
+        if(line[ci2] !== ' '){
+          const start = ci2;
+          while(ci2 < line.length && line[ci2] !== ' ') ci2++;
+          chords2.push(line.slice(start, ci2));
+        } else { ci2++; }
+      }
+      out.push(chords2.map(c=>'['+c+']').join(''));
+      i++;
+      if(i < lines.length && lines[i].trim() === '') { out.push(''); i++; } // consume blank
+      continue;
+    }
     if(isChordLine && i + 1 < lines.length && lines[i+1].trim() !== '' && !/^\{/.test(lines[i+1])){
       // Next line is the lyric line
       const chordLine = line;
@@ -3328,8 +3398,20 @@ async function chooseBackupFolder(){
     backupDirHandle = handle;
     await saveDirHandle(handle);
     updateBackupStatus('✓ Folder: ' + handle.name, true);
-    // Backup immediately
-    await doBackup();
+    // Check if backup file exists — if so, ask to restore
+    try {
+      await handle.getFileHandle(BACKUP_FILENAME);
+      // File exists — ask user
+      if(confirm('A backup file was found in this folder. Restore from backup?')){
+        await doRestore();
+      }
+      // Don't auto-backup on choose — let user manually backup or wait for app close
+    } catch(e){
+      if(e.name === 'NotFoundError'){
+        // No backup yet — that's fine, will backup on app close
+        updateBackupStatus('✓ Folder set: ' + handle.name + ' (will backup on close)', true);
+      }
+    }
   } catch(e){
     if(e.name !== 'AbortError'){
       toast('Could not access folder: ' + e.message);
@@ -3346,7 +3428,7 @@ async function initBackup(){
     if(perm === 'granted'){
       updateBackupStatus('✓ Folder: ' + handle.name, true);
       await doRestore();
-      await doBackup();
+      // Don't backup on startup — only backup on app close to avoid overwriting with stale data
     } else {
       // Permission not granted — show a banner tap-to-reconnect
       updateBackupStatus('Tap to reconnect backup folder', true);
@@ -3372,7 +3454,6 @@ function showReconnectBanner(handle){
         banner.remove();
         updateBackupStatus('✓ Folder: ' + handle.name, true);
         await doRestore();
-        await doBackup();
       } else {
         banner.innerHTML = '<span style="flex:1;color:var(--danger)">Permission denied — choose a new folder in the menu</span><span id="reconnect-dismiss" style="color:var(--text3);padding:4px 8px;cursor:pointer">✕</span>';
         document.getElementById('reconnect-dismiss').addEventListener('click', ()=>banner.remove());
