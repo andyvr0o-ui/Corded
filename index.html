@@ -1965,18 +1965,22 @@ function openRootPanel(root, btn){
 
   const panel = document.getElementById('chord-root-panel');
   const inner = document.getElementById('chord-root-panel-inner');
-  inner.innerHTML = '';
 
-  // Natural, sharp, flat variants first
-  const variants = [root, root+'#', root+'b'];
-  // Then all suffixed versions of natural root
+  // 3-column grid layout
+  inner.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:5px;width:100%';
+
+  // Row 1: Natural, Sharp, Flat
+  const row1 = [root, root+'#', root+'b'];
+  // Remaining suffixes fill the grid
   const suffixed = CHORD_SUFFIXES.filter(s=>s!=='').map(s=>root+s);
-  const all = [...variants, ...suffixed];
+  const all = [...row1, ...suffixed];
 
+  inner.innerHTML = '';
   all.forEach(chord => {
     const b = document.createElement('button');
-    b.className = 'chord-var-btn' + (chord === root ? ' natural' : '');
+    b.className = 'chord-var-btn' + (row1.includes(chord) ? ' natural' : '');
     b.textContent = chord;
+    b.style.cssText = 'text-align:center;width:100%';
     wireChordBtn(b, chord);
     inner.appendChild(b);
   });
