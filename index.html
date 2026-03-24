@@ -788,6 +788,15 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
       <button class="icon-btn" id="modal-cancel" title="Save &amp; close">←</button>
       <span id="modal-title" style="flex:1;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent)">Add Song</span>
+      <!-- Key dropdown in top bar -->
+      <div style="position:relative" id="key-dropdown-wrap">
+        <button id="key-dropdown-btn" style="display:flex;align-items:center;gap:4px;padding:5px 9px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+          Key: <span id="key-dropdown-label">G</span> <span style="font-size:9px;opacity:.6">▾</span>
+        </button>
+        <div id="key-dropdown-list" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:10px;z-index:500;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:180px">
+          <div style="display:flex;flex-wrap:wrap;gap:4px" id="key-dropdown-grid"></div>
+        </div>
+      </div>
       <button class="icon-btn" id="modal-undo" title="Undo" style="font-size:16px;opacity:.5" disabled>↩</button>
       <button class="icon-btn" id="modal-redo" title="Redo" style="font-size:16px;opacity:.5" disabled>↪</button>
       <button class="icon-btn" id="modal-discard" title="Discard changes" style="color:var(--danger);display:none">✕</button>
@@ -800,16 +809,19 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <div id="chord-bar" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch">
         <!-- Populated by renderChordBar() -->
       </div>
-      <!-- History row -->
-      <div id="chord-history-bar" style="display:flex;align-items:center;gap:5px;padding:3px 8px 5px;overflow-x:auto;scrollbar-width:none;min-height:32px">
-        <!-- Populated by renderChordHistory() -->
+      <!-- History row + auto-bracket -->
+      <div style="display:flex;align-items:center;border-top:1px solid var(--border)">
+        <div id="chord-history-bar" style="flex:1;display:flex;align-items:center;gap:5px;padding:3px 8px 5px;overflow-x:auto;scrollbar-width:none;min-height:32px">
+          <!-- Populated by renderChordHistory() -->
+        </div>
+        <button id="auto-bracket-btn" title="Auto-bracket: type chord then Enter to wrap in []" style="flex-shrink:0;padding:4px 8px;margin:0 6px 0 0;border-radius:7px;background:var(--surface3);border:1px solid var(--border);color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;cursor:pointer;display:none">[ ]</button>
       </div>
-      <!-- Root variations panel (floats above) -->
-      <div id="chord-root-panel" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px;z-index:10;box-shadow:0 -4px 16px rgba(0,0,0,.4)">
+      <!-- Root variations panel (drops below bar) -->
+      <div id="chord-root-panel" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.4)">
         <div id="chord-root-panel-inner" style="display:flex;flex-wrap:wrap;gap:5px"></div>
       </div>
       <!-- Search dropdown -->
-      <div id="chord-search-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:11;max-height:180px;overflow-y:auto;box-shadow:0 -4px 16px rgba(0,0,0,.4)">
+      <div id="chord-search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);z-index:11;max-height:180px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4)">
         <!-- Populated by chord search -->
       </div>
     </div>
@@ -830,23 +842,12 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
               <button class="key-opt" data-tag="hymn" style="font-family:'Nunito';font-size:11px;padding:4px 8px">Hymn</button>
               <button class="key-opt" data-tag="contemporary" style="font-family:'Nunito';font-size:11px;padding:4px 8px">Contemporary</button>
             </div>
-            <!-- Key dropdown -->
-            <div style="position:relative;margin-left:auto" id="key-dropdown-wrap">
-              <button id="key-dropdown-btn" style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer">
-                Key: <span id="key-dropdown-label">G</span> <span style="font-size:10px;opacity:.6">▾</span>
-              </button>
-              <div id="key-dropdown-list" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:10px;z-index:500;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:180px">
-                <div style="display:flex;flex-wrap:wrap;gap:4px" id="key-dropdown-grid"></div>
-              </div>
-            </div>
+
           </div>
-          <!-- Mode toggle + auto-bracket toggle -->
-          <div style="display:flex;align-items:center;gap:6px;margin:8px 0 0">
-            <div class="editor-mode-row" style="margin:0;border-radius:8px;flex:1">
-              <button class="editor-mode-btn active" id="mode-chart">Chords over Lyrics</button>
-              <button class="editor-mode-btn" id="mode-chordpro">ChordPro</button>
-            </div>
-            <button id="auto-bracket-btn" title="Auto-bracket chords (ChordPro mode)" style="padding:5px 9px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;cursor:pointer;display:none">[ ] off</button>
+          <!-- Mode toggle -->
+          <div class="editor-mode-row" style="margin:8px 0 0;border-radius:8px">
+            <button class="editor-mode-btn active" id="mode-chart">Chords over Lyrics</button>
+            <button class="editor-mode-btn" id="mode-chordpro">ChordPro</button>
           </div>
         </div>
       </div>
