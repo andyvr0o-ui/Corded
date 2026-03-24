@@ -1,4 +1,4 @@
-const CACHE_NAME = 'corded-v2';
+const CACHE_NAME = 'corded-v3';
 const BASE = 'https://andyvr0o-ui.github.io/Corded';
 const ASSETS = [
   BASE + '/index.html',
@@ -27,6 +27,20 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Network first for HTML — always get latest index.html
+  if(e.request.url.endsWith('index.html') || e.request.url.endsWith('/Corded') || e.request.url.endsWith('/Corded/')){
+    e.respondWith(
+      fetch(e.request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // Cache first for other assets
   e.respondWith(
     caches.match(e.request)
       .then(cached => cached || fetch(e.request)
