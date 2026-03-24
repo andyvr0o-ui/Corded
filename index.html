@@ -462,7 +462,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 .chord-root-btn.active{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
 .chord-var-btn{padding:5px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .chord-var-btn.natural{color:var(--text);font-weight:700;background:var(--surface3)}
-.chord-history-pill{padding:4px 10px;border-radius:7px;background:var(--surface3);border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.chord-history-pill{padding:4px 10px;border-radius:7px;background:var(--surface3);border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .chord-history-pill.from-song{border-color:var(--chord);color:var(--chord)}
 .chord-search-item{padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);cursor:pointer}
 .chord-search-item:active{background:var(--surface2)}
@@ -807,7 +807,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     </div>
 
     <!-- CHORD BAR — always visible -->
-    <div id="chord-bar-wrap" style="flex-shrink:0;background:var(--surface2);border-bottom:1px solid var(--border);position:relative;touch-action:pan-x">
+    <div id="chord-bar-wrap" style="flex-shrink:0;background:var(--surface2);border-bottom:1px solid var(--border);position:relative">
       <!-- Root buttons row -->
       <div id="chord-bar" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x">
         <!-- Populated by renderChordBar() -->
@@ -815,7 +815,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <!-- Builder panel: step options + preview + grid -->
       <div id="chord-builder-panel" style="display:none;border-top:1px solid var(--border)">
         <!-- Step buttons row -->
-        <div id="chord-builder-steps" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;touch-action:pan-x"></div>
+        <div id="chord-builder-steps" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;flex-wrap:wrap"></div>
         <!-- Preview + reset -->
         <div id="chord-builder-preview-row" style="display:flex;align-items:center;gap:6px;padding:2px 8px 5px">
           <span style="font-size:11px;color:var(--text3)">Chord:</span>
@@ -827,8 +827,8 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
         <div id="chord-builder-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 8px 6px;max-height:108px;overflow-y:auto"></div>
       </div>
       <!-- History row + auto-bracket -->
-      <div style="display:flex;align-items:center;border-top:1px solid var(--border)">
-        <div id="chord-history-bar" style="flex:1;display:flex;align-items:center;gap:5px;padding:3px 8px 5px;overflow-x:auto;scrollbar-width:none;min-height:32px;-webkit-overflow-scrolling:touch;touch-action:pan-x">
+      <div style="display:flex;align-items:center;border-top:1px solid var(--border);touch-action:pan-x;overflow:hidden">
+        <div id="chord-history-bar" style="flex:1;display:flex;align-items:center;gap:5px;padding:3px 8px 5px;overflow-x:scroll;scrollbar-width:none;min-height:32px;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;flex-wrap:nowrap">
           <!-- Populated by renderChordHistory() -->
         </div>
         <button id="auto-bracket-btn" title="Auto-bracket: type chord then Enter to wrap in []" style="flex-shrink:0;padding:4px 8px;margin:0 6px 0 0;border-radius:7px;background:var(--surface3);border:1px solid var(--border);color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;cursor:pointer;display:none">[ ]</button>
@@ -2124,7 +2124,10 @@ function renderChordBar(){
     bar.appendChild(btn);
   });
 
-  // Wire insert + reset buttons
+}
+
+// Wire chord builder insert/reset once (not in renderChordBar which reruns)
+document.addEventListener('DOMContentLoaded',()=>{
   const insertBtn = document.getElementById('chord-builder-insert');
   const resetBtn  = document.getElementById('chord-builder-reset');
   if(insertBtn){
@@ -2142,7 +2145,7 @@ function renderChordBar(){
     resetBtn.addEventListener('touchend', e=>{ e.preventDefault(); cbReset(); },{passive:false});
     resetBtn.addEventListener('click', ()=> cbReset());
   }
-}
+});
 
 function startBuilder(root, btn){
   // Close keyboard and suppress viewport jump
