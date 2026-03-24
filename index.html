@@ -805,9 +805,23 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
     <!-- CHORD BAR — always visible -->
     <div id="chord-bar-wrap" style="flex-shrink:0;background:var(--surface2);border-bottom:1px solid var(--border);position:relative">
-      <!-- Search + root buttons row -->
+      <!-- Root buttons row -->
       <div id="chord-bar" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch">
         <!-- Populated by renderChordBar() -->
+      </div>
+      <!-- Builder panel: step options + preview + grid -->
+      <div id="chord-builder-panel" style="display:none;border-top:1px solid var(--border)">
+        <!-- Step buttons row -->
+        <div id="chord-builder-steps" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;flex-wrap:wrap"></div>
+        <!-- Preview + reset -->
+        <div id="chord-builder-preview-row" style="display:flex;align-items:center;gap:6px;padding:2px 8px 5px">
+          <span style="font-size:11px;color:var(--text3)">Chord:</span>
+          <span id="chord-builder-preview" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent);flex:1"></span>
+          <button id="chord-builder-insert" style="padding:4px 12px;border-radius:7px;background:var(--chord);border:none;color:#0d0f14;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer">Insert</button>
+          <button id="chord-builder-reset" style="padding:4px 8px;border-radius:7px;background:none;border:1px solid var(--border);color:var(--text3);font-size:13px;cursor:pointer">✕</button>
+        </div>
+        <!-- 3-col chord grid -->
+        <div id="chord-builder-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 8px 6px;max-height:108px;overflow-y:auto"></div>
       </div>
       <!-- History row + auto-bracket -->
       <div style="display:flex;align-items:center;border-top:1px solid var(--border)">
@@ -815,14 +829,6 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
           <!-- Populated by renderChordHistory() -->
         </div>
         <button id="auto-bracket-btn" title="Auto-bracket: type chord then Enter to wrap in []" style="flex-shrink:0;padding:4px 8px;margin:0 6px 0 0;border-radius:7px;background:var(--surface3);border:1px solid var(--border);color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;cursor:pointer;display:none">[ ]</button>
-      </div>
-      <!-- Root variations panel (drops below bar) -->
-      <div id="chord-root-panel" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.4)">
-        <div id="chord-root-panel-inner" style="display:flex;flex-wrap:wrap;gap:5px"></div>
-      </div>
-      <!-- Search dropdown -->
-      <div id="chord-search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);z-index:11;max-height:180px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4)">
-        <!-- Populated by chord search -->
       </div>
     </div>
 
@@ -1942,241 +1948,200 @@ function addRecent(chord){
   recentChords=[chord,...recentChords.filter(c=>c!==chord)].slice(0,14);save();
 }
 
-// ── CHORD BAR STATE ──
+// ── CHORD BUILDER STATE ──
 const CHORD_ROOTS = ['C','D','E','F','G','A','B'];
-const CHORD_SUFFIXES = ['','m','7','m7','maj7','sus2','sus4','dim','aug','add9','m9','6','9','11','13','7sus4','5'];
-let activeRoot = null; // currently expanded root
-let chordBarLastCursor = 0; // last cursor position in active textarea
+const CHORD_QUALITIES = ['m','7','maj7','m7','sus2','sus4','dim','aug','add9','m9','6','9','11','13','7sus4','5','2'];
+let cbRoot = '';        // e.g. 'D'
+let cbAccidental = '';  // '', '#', 'b'
+let cbQuality = '';     // e.g. 'm', 'maj7'
+let cbSlash = false;    // adding bass note?
+let cbBassRoot = '';    // e.g. 'F'
+let cbBassAcc = '';     // '#' only
+let cbStep = 0;         // 0=root, 1=accidental, 2=quality, 3=slash/done, 4=bass root, 5=bass acc
+let chordBarLastCursor = 0;
 let autoBracket = false;
 
-function getChordsFromSong(){
-  // Extract unique chords from current ChordPro lyrics, transposed to current display key
-  const ta = document.getElementById('form-lyrics');
-  const ct = document.getElementById('chart-textarea');
-  const raw = editorMode === 'chart'
-    ? chartToChordPro(ct ? ct.value : '')
-    : (ta ? ta.value : '');
-  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
-              - (typeof capo !== 'undefined' ? capo : 0);
-  const found = new Set();
-  const re = /\[([^\]]+)\]/g;
-  let m;
-  while((m = re.exec(raw)) !== null){
-    const raw_chord = m[1];
-    const transposed = steps !== 0 ? transposeChord(raw_chord, steps) : raw_chord;
-    found.add(transposed);
-  }
-  return [...found].filter(c => c.length > 0).slice(0, 12);
+function cbChord(){
+  if(!cbRoot) return '';
+  let c = cbRoot + cbAccidental + cbQuality;
+  if(cbSlash && cbBassRoot) c += '/' + cbBassRoot + cbBassAcc;
+  return c;
 }
 
-function wireChordBtn(btn, chord){
-  let t0=0, moved=false;
-  btn.addEventListener('touchstart', e=>{
-    t0=Date.now(); moved=false;
-  },{passive:true});
-  btn.addEventListener('touchmove', ()=>{ moved=true; },{passive:true});
-  btn.addEventListener('touchend', e=>{
-    if(moved) return;
-    e.preventDefault();
-    insertChord(chord);
-  },{passive:false});
-  btn.addEventListener('click', ()=> insertChord(chord));
-}
-
-function closeRootPanel(){
-  activeRoot = null;
-  const panel = document.getElementById('chord-root-panel');
-  if(panel) panel.style.display = 'none';
+function cbReset(){
+  cbRoot=''; cbAccidental=''; cbQuality=''; cbSlash=false; cbBassRoot=''; cbBassAcc=''; cbStep=0;
+  document.getElementById('chord-builder-panel').style.display='none';
   document.querySelectorAll('.chord-root-btn').forEach(b=>b.classList.remove('active'));
 }
 
-// Tap outside chord panels closes them
-document.addEventListener('touchstart', e=>{
-  const wrap = document.getElementById('chord-bar-wrap');
-  if(!wrap) return;
-  if(!wrap.contains(e.target)){
-    closeRootPanel();
-    const dd = document.getElementById('chord-search-dropdown');
-    if(dd) dd.style.display = 'none';
+function cbUpdate(){
+  const chord = cbChord();
+  document.getElementById('chord-builder-preview').textContent = chord || '…';
+  updateBuilderGrid(chord);
+  renderBuilderSteps();
+}
+
+function updateBuilderGrid(chord){
+  const grid = document.getElementById('chord-builder-grid');
+  if(!grid) return;
+  // Show chords from ALL_CHORDS that start with current built chord
+  const prefix = chord.toLowerCase();
+  const matches = chord
+    ? ALL_CHORDS.filter(c=>c.toLowerCase().startsWith(prefix) && c !== chord).slice(0,18)
+    : [];
+  grid.innerHTML = '';
+  // Always show the exact chord first if valid
+  if(chord && chord.length > 0){
+    const exact = document.createElement('button');
+    exact.className = 'chord-var-btn natural';
+    exact.textContent = chord;
+    exact.style.cssText = 'text-align:center;width:100%;outline:2px solid var(--accent)';
+    cbWireInsert(exact, chord);
+    grid.appendChild(exact);
   }
-},{passive:true});
-
-function buildRootPanel(displayRoot, activeRootBase){
-  const panel = document.getElementById('chord-root-panel');
-  const inner = document.getElementById('chord-root-panel-inner');
-
-  // 3-column grid, fixed height ~3 rows, scrollable
-  inner.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:5px;width:100%';
-  panel.style.maxHeight = '130px';
-  panel.style.overflowY = 'auto';
-
-  // Row 1: Natural, Sharp, Flat of the BASE root (e.g. always D, D#, Db)
-  const naturalBase = activeRootBase;
-  const row1 = [naturalBase, naturalBase+'#', naturalBase+'b'];
-  // Remaining: suffixed versions of displayRoot (e.g. D# variations)
-  const suffixed = CHORD_SUFFIXES.filter(s=>s!=='').map(s=>displayRoot+s);
-  // displayRoot itself goes as the "natural" of current panel
-  const all = [...row1, displayRoot, ...suffixed];
-  // Dedupe while preserving order
-  const seen = new Set();
-  const deduped = all.filter(c=>{ if(seen.has(c)) return false; seen.add(c); return true; });
-
-  inner.innerHTML = '';
-  deduped.forEach(chord => {
+  matches.forEach(c=>{
     const b = document.createElement('button');
-    const isRow1 = row1.includes(chord);
-    b.className = 'chord-var-btn' + (isRow1 ? ' natural' : '');
-    if(chord === displayRoot) b.style.outline = '2px solid var(--accent)';
-    b.textContent = chord;
-    b.style.cssText = (b.style.cssText||'') + ';text-align:center;width:100%';
-    // Row 1 buttons (# and b) update the panel, not insert
-    if(isRow1 && chord !== naturalBase){
-      b.addEventListener('mousedown', e=>e.preventDefault());
-      b.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
-      b.addEventListener('touchend', e=>{
-        e.preventDefault();
-        buildRootPanel(chord, naturalBase);
-      },{passive:false});
-      b.addEventListener('click', ()=> buildRootPanel(chord, naturalBase));
-    } else if(isRow1 && chord === naturalBase){
-      // Natural — reset to base
-      b.addEventListener('mousedown', e=>e.preventDefault());
-      b.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
-      b.addEventListener('touchend', e=>{
-        e.preventDefault();
-        buildRootPanel(naturalBase, naturalBase);
-      },{passive:false});
-      b.addEventListener('click', ()=> buildRootPanel(naturalBase, naturalBase));
-    } else {
-      wireChordBtn(b, chord);
-    }
-    inner.appendChild(b);
+    b.className = 'chord-var-btn';
+    b.textContent = c;
+    b.style.cssText = 'text-align:center;width:100%';
+    cbWireInsert(b, c);
+    grid.appendChild(b);
   });
 }
 
-function openRootPanel(root, btn){
-  activeRoot = root;
-  document.querySelectorAll('.chord-root-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  // Close keyboard by blurring active textarea
+function cbWireInsert(btn, chord){
+  btn.addEventListener('mousedown', e=>e.preventDefault());
+  btn.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
+  btn.addEventListener('touchend', e=>{
+    e.preventDefault();
+    insertChord(chord);
+    cbReset();
+    renderChordHistory();
+  },{passive:false});
+  btn.addEventListener('click', ()=>{ insertChord(chord); cbReset(); renderChordHistory(); });
+}
+
+function renderBuilderSteps(){
+  const steps = document.getElementById('chord-builder-steps');
+  if(!steps) return;
+  steps.innerHTML = '';
+
+  function makeBtn(label, active, onClick, danger){
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.className = 'chord-var-btn' + (active ? ' natural' : '');
+    if(danger) b.style.color = 'var(--danger)';
+    if(active) b.style.outline = '2px solid var(--accent)';
+    b.style.cssText = (b.style.cssText||'') + ';min-width:44px;text-align:center';
+    b.addEventListener('mousedown', e=>e.preventDefault());
+    b.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
+    const handler = ()=>{ onClick(); cbUpdate(); };
+    b.addEventListener('touchend', e=>{ e.preventDefault(); handler(); },{passive:false});
+    b.addEventListener('click', handler);
+    return b;
+  }
+
+  // If no root yet — nothing to show (root buttons handle step 0)
+  if(!cbRoot) return;
+
+  // Step 2: accidental
+  ['♮','#','b'].forEach(acc=>{
+    const val = acc==='♮' ? '' : acc;
+    steps.appendChild(makeBtn(acc, cbAccidental===val, ()=>{ cbAccidental=val; }));
+  });
+
+  // Separator
+  const sep = document.createElement('span');
+  sep.style.cssText = 'color:var(--border);font-size:16px;padding:0 2px';
+  sep.textContent = '|';
+  steps.appendChild(sep);
+
+  // Step 3: quality
+  CHORD_QUALITIES.forEach(q=>{
+    steps.appendChild(makeBtn(q, cbQuality===q, ()=>{ cbQuality = cbQuality===q ? '' : q; }));
+  });
+
+  // Separator
+  const sep2 = sep.cloneNode(true);
+  steps.appendChild(sep2);
+
+  // Step 4: slash bass
+  if(!cbSlash){
+    steps.appendChild(makeBtn('/', false, ()=>{ cbSlash=true; cbBassRoot=''; cbBassAcc=''; }));
+  } else {
+    // Bass root buttons
+    CHORD_ROOTS.forEach(r=>{
+      steps.appendChild(makeBtn(r, cbBassRoot===r, ()=>{ cbBassRoot=r; cbBassAcc=''; }));
+    });
+    if(cbBassRoot){
+      steps.appendChild(makeBtn('#', cbBassAcc==='#', ()=>{ cbBassAcc = cbBassAcc===' #' ? '' : '#'; }));
+    }
+    steps.appendChild(makeBtn('✕/', false, ()=>{ cbSlash=false; cbBassRoot=''; cbBassAcc=''; }, true));
+  }
+}
+
+function renderChordBar(){
+  const bar = document.getElementById('chord-bar');
+  if(!bar) return;
+  bar.innerHTML = '';
+  CHORD_ROOTS.forEach(root => {
+    const btn = document.createElement('button');
+    btn.className = 'chord-root-btn';
+    btn.textContent = root;
+    btn.dataset.root = root;
+    btn.addEventListener('mousedown', e=>e.preventDefault());
+    btn.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
+    btn.addEventListener('touchend', e=>{
+      e.preventDefault();
+      startBuilder(root, btn);
+    },{passive:false});
+    btn.addEventListener('click', ()=> startBuilder(root, btn));
+    bar.appendChild(btn);
+  });
+
+  // Wire insert + reset buttons
+  const insertBtn = document.getElementById('chord-builder-insert');
+  const resetBtn  = document.getElementById('chord-builder-reset');
+  if(insertBtn){
+    insertBtn.addEventListener('mousedown', e=>e.preventDefault());
+    insertBtn.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
+    insertBtn.addEventListener('touchend', e=>{
+      e.preventDefault();
+      const c = cbChord(); if(c){ insertChord(c); renderChordHistory(); } cbReset();
+    },{passive:false});
+    insertBtn.addEventListener('click', ()=>{ const c=cbChord(); if(c){ insertChord(c); renderChordHistory(); } cbReset(); });
+  }
+  if(resetBtn){
+    resetBtn.addEventListener('mousedown', e=>e.preventDefault());
+    resetBtn.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
+    resetBtn.addEventListener('touchend', e=>{ e.preventDefault(); cbReset(); },{passive:false});
+    resetBtn.addEventListener('click', ()=> cbReset());
+  }
+}
+
+function startBuilder(root, btn){
+  // Close keyboard
   const ta = document.getElementById('form-lyrics');
   const ct = document.getElementById('chart-textarea');
   if(document.activeElement===ta||document.activeElement===ct){
     chordBarLastCursor = document.activeElement.selectionStart;
     document.activeElement.blur();
   }
-  buildRootPanel(root, root);
-  document.getElementById('chord-root-panel').style.display = 'block';
+  window._suppressFieldExpand = true;
+  setTimeout(()=>{ window._suppressFieldExpand=false; }, 600);
+  // Reset and set root
+  cbRoot=root; cbAccidental=''; cbQuality=''; cbSlash=false; cbBassRoot=''; cbBassAcc='';
+  document.querySelectorAll('.chord-root-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('chord-builder-panel').style.display='block';
+  cbUpdate();
 }
 
-function renderChordBar(){
-  const bar = document.getElementById('chord-bar');
-  if(!bar) return;
-
-  // Search box
-  const searchCe = document.createElement('div');
-  searchCe.className = 'chord-bar-search-ce';
-  searchCe.id = 'chord-bar-search';
-  searchCe.contentEditable = 'true';
-  searchCe.spellcheck = false;
-  searchCe.dataset.placeholder = 'search…';
-
-  bar.innerHTML = '';
-  bar.appendChild(searchCe);
-
-  // Root buttons
-  CHORD_ROOTS.forEach(root => {
-    const btn = document.createElement('button');
-    btn.className = 'chord-root-btn';
-    btn.textContent = root;
-    btn.dataset.root = root;
-    let t0=0, tmoved=false;
-    btn.addEventListener('touchstart', ()=>{ t0=Date.now(); tmoved=false; },{passive:true});
-    btn.addEventListener('touchmove', ()=>{ tmoved=true; },{passive:true});
-    btn.addEventListener('touchend', e=>{
-      if(tmoved) return;
-      e.preventDefault();
-      if(activeRoot === root){ closeRootPanel(); }
-      else { openRootPanel(root, btn); }
-    },{passive:false});
-    btn.addEventListener('click', ()=>{
-      if(activeRoot === root) closeRootPanel();
-      else openRootPanel(root, btn);
-    });
-    bar.appendChild(btn);
-  });
-
-  // Search wiring
-  let searchTimer = null;
-  searchCe.addEventListener('input', function(){
-    const q = (this.innerText||'').trim().toLowerCase();
-    const dd = document.getElementById('chord-search-dropdown');
-    dd.innerHTML = '';
-    if(q.length < 1){ dd.style.display='none'; return; }
-    const matches = ALL_CHORDS.filter(c=>c.toLowerCase().startsWith(q)).slice(0,15);
-    if(!matches.length){ dd.style.display='none'; return; }
-    matches.forEach(chord=>{
-      const item = document.createElement('div');
-      item.className = 'chord-search-item';
-      item.textContent = chord;
-      item.addEventListener('mousedown', e=>e.preventDefault());
-      item.addEventListener('click', ()=>{
-        insertChord(chord);
-        searchCe.innerText='';
-        dd.style.display='none';
-        addRecent(chord);
-        renderChordHistory();
-      });
-      dd.appendChild(item);
-    });
-    dd.style.display='block';
-  });
-  searchCe.addEventListener('keydown', e=>{
-    e.stopPropagation();
-    if(e.key==='Enter'){
-      e.preventDefault();
-      const q=(searchCe.innerText||'').trim();
-      if(!q) return;
-      const match=ALL_CHORDS.find(c=>c.toLowerCase()===q.toLowerCase())||q;
-      insertChord(match);
-      searchCe.innerText='';
-      document.getElementById('chord-search-dropdown').style.display='none';
-      addRecent(match);
-      renderChordHistory();
-    }
-    if(e.key==='Escape'){
-      searchCe.innerText='';
-      document.getElementById('chord-search-dropdown').style.display='none';
-    }
-  });
-  searchCe.addEventListener('blur', ()=>{
-    setTimeout(()=>{ document.getElementById('chord-search-dropdown').style.display='none'; }, 150);
-  });
-}
-
-function renderChordHistory(){
-  const bar = document.getElementById('chord-history-bar');
-  if(!bar) return;
-  bar.innerHTML = '';
-  const songChords = getChordsFromSong(); // already transposed
-  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
-              - (typeof capo !== 'undefined' ? capo : 0);
-  const recent = recentChords.slice(0,8).map(c=> steps !== 0 ? transposeChord(c, steps) : c);
-  // Combine: song chords first, then recent (deduped)
-  const seen = new Set();
-  const all = [...songChords, ...recent].filter(c=>{ if(seen.has(c)) return false; seen.add(c); return true; }).slice(0,16);
-  if(!all.length){
-    bar.innerHTML = '<span style="font-size:11px;color:var(--text3);padding:2px 4px">No history yet</span>';
-    return;
-  }
-  all.forEach(chord=>{
-    const btn = document.createElement('button');
-    btn.className = 'chord-history-pill' + (songChords.includes(chord) ? ' from-song' : '');
-    btn.textContent = chord;
-    wireChordBtn(btn, chord);
-    bar.appendChild(btn);
-  });
-}
+// Tap outside chord bar closes builder
+document.addEventListener('touchstart', e=>{
+  const wrap = document.getElementById('chord-bar-wrap');
+  if(wrap && !wrap.contains(e.target)) cbReset();
+},{passive:true});
 
 
 function makePills(container,chords,cls,extraHtml){
@@ -2222,10 +2187,10 @@ function openModal(editId){
     document.getElementById('form-lyrics').value='';
     selectedKey='G';selectedTag='worship';
   }
-  buildKeyPicker();renderRecentChords();renderKeyChords(selectedKey);
+  buildKeyDropdown();
+  cbReset();
   renderChordBar();
-  document.getElementById('chord-search').value='';
-  document.getElementById('chord-search-results').innerHTML='';
+  renderChordHistory();
   document.querySelectorAll('#tag-picker [data-tag]').forEach(btn=>{
     btn.classList.toggle('selected',btn.dataset.tag===selectedTag);
     btn.onclick=()=>{selectedTag=btn.dataset.tag;document.querySelectorAll('#tag-picker [data-tag]').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');};
