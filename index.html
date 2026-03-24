@@ -1975,10 +1975,7 @@ function cbReset(){
 }
 
 function cbUpdate(){
-  const chord = cbChord();
-  document.getElementById('chord-builder-preview').textContent = chord || '…';
-  updateBuilderGrid(chord);
-  renderBuilderSteps();
+  renderBuilderSteps(); // rebuilds if needed, then updates states + preview + grid
 }
 
 function updateBuilderGrid(chord){
@@ -2023,61 +2020,89 @@ function cbWireInsert(btn, chord){
 
 function renderBuilderSteps(){
   const steps = document.getElementById('chord-builder-steps');
-  if(!steps) return;
-  steps.innerHTML = '';
+  if(!steps || !cbRoot) return;
 
-  function makeBtn(label, active, onClick, danger){
-    const b = document.createElement('button');
-    b.textContent = label;
-    b.className = 'chord-var-btn' + (active ? ' natural' : '');
-    if(danger) b.style.color = 'var(--danger)';
-    if(active) b.style.outline = '2px solid var(--accent)';
-    b.style.cssText = (b.style.cssText||'') + ';min-width:44px;text-align:center';
-    b.addEventListener('mousedown', e=>e.preventDefault());
-    b.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
-    const handler = ()=>{ onClick(); cbUpdate(); };
-    b.addEventListener('touchend', e=>{ e.preventDefault(); handler(); },{passive:false});
-    b.addEventListener('click', handler);
-    return b;
-  }
+  // Only rebuild DOM if structure needs to change (slash mode toggled)
+  const needsRebuild = steps.dataset.slashMode !== String(cbSlash) || steps.dataset.hasRoot !== cbRoot;
 
-  // If no root yet — nothing to show (root buttons handle step 0)
-  if(!cbRoot) return;
+  if(needsRebuild){
+    steps.innerHTML = '';
+    steps.dataset.slashMode = String(cbSlash);
+    steps.dataset.hasRoot = cbRoot;
 
-  // Step 2: accidental
-  ['♮','#','b'].forEach(acc=>{
-    const val = acc==='♮' ? '' : acc;
-    steps.appendChild(makeBtn(acc, cbAccidental===val, ()=>{ cbAccidental=val; }));
-  });
-
-  // Separator
-  const sep = document.createElement('span');
-  sep.style.cssText = 'color:var(--border);font-size:16px;padding:0 2px';
-  sep.textContent = '|';
-  steps.appendChild(sep);
-
-  // Step 3: quality
-  CHORD_QUALITIES.forEach(q=>{
-    steps.appendChild(makeBtn(q, cbQuality===q, ()=>{ cbQuality = cbQuality===q ? '' : q; }));
-  });
-
-  // Separator
-  const sep2 = sep.cloneNode(true);
-  steps.appendChild(sep2);
-
-  // Step 4: slash bass
-  if(!cbSlash){
-    steps.appendChild(makeBtn('/', false, ()=>{ cbSlash=true; cbBassRoot=''; cbBassAcc=''; }));
-  } else {
-    // Bass root buttons
-    CHORD_ROOTS.forEach(r=>{
-      steps.appendChild(makeBtn(r, cbBassRoot===r, ()=>{ cbBassRoot=r; cbBassAcc=''; }));
-    });
-    if(cbBassRoot){
-      steps.appendChild(makeBtn('#', cbBassAcc==='#', ()=>{ cbBassAcc = cbBassAcc===' #' ? '' : '#'; }));
+    function makeBtn(label, cls, onClick, danger){
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.className = 'chord-var-btn';
+      b.dataset.btnKey = label;
+      if(danger) b.style.color = 'var(--danger)';
+      b.style.cssText = (b.style.cssText||'') + ';min-width:44px;text-align:center;flex-shrink:0';
+      b.addEventListener('mousedown', e=>e.preventDefault());
+      b.addEventListener('touchstart', e=>{
+        e.preventDefault();
+        window._suppressFieldExpand = true;
+        setTimeout(()=>{ window._suppressFieldExpand = false; }, 600);
+      },{passive:false});
+      b.addEventListener('touchend', e=>{ e.preventDefault(); onClick(); cbUpdateStates(); },{passive:false});
+      b.addEventListener('click', ()=>{ onClick(); cbUpdateStates(); });
+      return b;
     }
-    steps.appendChild(makeBtn('✕/', false, ()=>{ cbSlash=false; cbBassRoot=''; cbBassAcc=''; }, true));
+
+    function makeSep(){
+      const s = document.createElement('span');
+      s.style.cssText = 'color:var(--border);font-size:16px;padding:0 2px;flex-shrink:0';
+      s.textContent = '|';
+      return s;
+    }
+
+    // Accidentals
+    [['♮',''],['#','#'],['b','b']].forEach(([label,val])=>{
+      steps.appendChild(makeBtn(label, '', ()=>{ cbAccidental=val; }));
+    });
+    steps.appendChild(makeSep());
+
+    // Qualities
+    CHORD_QUALITIES.forEach(q=>{
+      steps.appendChild(makeBtn(q, '', ()=>{ cbQuality = cbQuality===q ? '' : q; }));
+    });
+    steps.appendChild(makeSep());
+
+    // Slash section
+    if(!cbSlash){
+      steps.appendChild(makeBtn('/', '', ()=>{ cbSlash=true; cbBassRoot=''; cbBassAcc=''; }));
+    } else {
+      CHORD_ROOTS.forEach(r=>{
+        steps.appendChild(makeBtn(r, '', ()=>{ cbBassRoot=r; cbBassAcc=''; }));
+      });
+      steps.appendChild(makeBtn('#', '', ()=>{ cbBassAcc = cbBassAcc==='#' ? '' : '#'; }));
+      const cancelBtn = makeBtn('✕/', '', ()=>{ cbSlash=false; cbBassRoot=''; cbBassAcc=''; }, true);
+      steps.appendChild(cancelBtn);
+    }
   }
+
+  // Always just update active states — no DOM rebuild
+  cbUpdateStates();
+}
+
+function cbUpdateStates(){
+  const steps = document.getElementById('chord-builder-steps');
+  if(!steps) return;
+  steps.querySelectorAll('.chord-var-btn').forEach(b=>{
+    const k = b.dataset.btnKey;
+    let isActive = false;
+    if(k==='♮') isActive = cbAccidental==='';
+    else if(k==='#' && b.closest('#chord-builder-steps')) isActive = cbSlash ? cbBassAcc==='#' : cbAccidental==='#';
+    else if(k==='b') isActive = cbAccidental==='b';
+    else if(CHORD_QUALITIES.includes(k)) isActive = cbQuality===k;
+    else if(CHORD_ROOTS.includes(k) && cbSlash) isActive = cbBassRoot===k;
+    b.classList.toggle('natural', isActive);
+    b.style.outline = isActive ? '2px solid var(--accent)' : '';
+  });
+  // Update preview
+  const chord = cbChord();
+  const preview = document.getElementById('chord-builder-preview');
+  if(preview) preview.textContent = chord || '…';
+  updateBuilderGrid(chord);
 }
 
 function renderChordBar(){
@@ -2120,7 +2145,7 @@ function renderChordBar(){
 }
 
 function startBuilder(root, btn){
-  // Close keyboard
+  // Close keyboard and suppress viewport jump
   const ta = document.getElementById('form-lyrics');
   const ct = document.getElementById('chart-textarea');
   if(document.activeElement===ta||document.activeElement===ct){
@@ -2128,11 +2153,14 @@ function startBuilder(root, btn){
     document.activeElement.blur();
   }
   window._suppressFieldExpand = true;
-  setTimeout(()=>{ window._suppressFieldExpand=false; }, 600);
+  setTimeout(()=>{ window._suppressFieldExpand=false; }, 1000);
   // Reset and set root
   cbRoot=root; cbAccidental=''; cbQuality=''; cbSlash=false; cbBassRoot=''; cbBassAcc='';
   document.querySelectorAll('.chord-root-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // Force steps to rebuild for new root
+  const steps = document.getElementById('chord-builder-steps');
+  if(steps) { steps.dataset.slashMode=''; steps.dataset.hasRoot=''; }
   document.getElementById('chord-builder-panel').style.display='block';
   cbUpdate();
 }
