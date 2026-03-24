@@ -2143,6 +2143,48 @@ document.addEventListener('touchstart', e=>{
   if(wrap && !wrap.contains(e.target)) cbReset();
 },{passive:true});
 
+function getChordsFromSong(){
+  const ta = document.getElementById('form-lyrics');
+  const ct = document.getElementById('chart-textarea');
+  const raw = editorMode === 'chart'
+    ? chartToChordPro(ct ? ct.value : '')
+    : (ta ? ta.value : '');
+  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
+              - (typeof capo !== 'undefined' ? capo : 0);
+  const found = new Set();
+  const re = /\[([^\]]+)\]/g;
+  let m;
+  while((m = re.exec(raw)) !== null){
+    const transposed = steps !== 0 ? transposeChord(m[1], steps) : m[1];
+    found.add(transposed);
+  }
+  return [...found].filter(c => c.length > 0).slice(0, 12);
+}
+
+function renderChordHistory(){
+  const bar = document.getElementById('chord-history-bar');
+  if(!bar) return;
+  bar.innerHTML = '';
+  const songChords = getChordsFromSong();
+  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
+              - (typeof capo !== 'undefined' ? capo : 0);
+  const recent = recentChords.slice(0,8).map(c=> steps !== 0 ? transposeChord(c, steps) : c);
+  const seen = new Set();
+  const all = [...songChords, ...recent].filter(c=>{ if(seen.has(c)) return false; seen.add(c); return true; }).slice(0,16);
+  if(!all.length){
+    bar.innerHTML = '<span style="font-size:11px;color:var(--text3);padding:2px 4px">No history yet</span>';
+    return;
+  }
+  all.forEach(chord=>{
+    const btn = document.createElement('button');
+    btn.className = 'chord-history-pill' + (songChords.includes(chord) ? ' from-song' : '');
+    btn.textContent = chord;
+    // Use cbWireInsert so it resets builder after inserting
+    cbWireInsert(btn, chord);
+    bar.appendChild(btn);
+  });
+}
+
 
 function makePills(container,chords,cls,extraHtml){
   if(!container)return;
