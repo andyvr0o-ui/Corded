@@ -17,7 +17,7 @@
 <style>
 :root{
   --bg:#0d0f14;--surface:#161923;--surface2:#1e2335;--surface3:#252c42;
-  --accent:#f4a261;--accent2:#e76f51;--chord:#52b788;
+  --accent:#f4a261;--accent2:#e76f51;--chord:#52b788;--danger:#e63946;
   --text:#e8e6e1;--text2:#9a9db5;--text3:#5c6080;
   --border:#2a2f48;--danger:#e63946;--radius:12px;--t:.18s ease;
 }
@@ -677,7 +677,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <button class="select-bar-btn primary" id="sel-add-current">+ Add to current set</button>
       <button class="select-bar-btn" id="sel-add-other">Add to…</button>
     </div>
-    <button id="select-bar-cancel">Cancel</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:0 2px">
+      <button id="select-bar-cancel">Cancel</button>
+      <button id="sel-delete" style="background:none;border:none;color:var(--danger);font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;cursor:pointer;padding:4px 8px">🗑 Delete</button>
+    </div>
   </div>
 
   <!-- SONG VIEW (fullscreen overlay, shown when a song is open) -->
@@ -3400,6 +3403,21 @@ function showSetlistPickerSheet(onPick){
   sheet.classList.add('open');
 }
 document.getElementById('select-bar-cancel').addEventListener('click',()=>clearSelection());
+document.getElementById('sel-delete').addEventListener('click',()=>{
+  const count = selectedSongs.size;
+  if(!count) return;
+  if(!confirm(`Delete ${count} song${count!==1?'s':''}? This cannot be undone.`)) return;
+  // Remove selected songs from library and all setlists
+  songs = songs.filter(s=>!selectedSongs.has(s.id));
+  setlists.forEach(sl=>{
+    sl.songs = sl.songs.filter(id=>!selectedSongs.has(id));
+  });
+  save();
+  clearSelection();
+  renderLibrary();
+  renderSetlist();
+  toast(`${count} song${count!==1?'s':''} deleted`);
+});
 
 // Create new setlist
 function createNewSetlist(){
