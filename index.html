@@ -986,6 +986,18 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 <div id="chord-tooltip"><div class="ct-name" id="tt-chord"></div><div class="ct-notes" id="tt-notes"></div></div>
 <div id="toast"></div>
+<!-- Rename dialog -->
+<div id="rename-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px 16px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6);margin:0 16px">
+    <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:14px">Rename Song</div>
+    <input id="rename-input" type="text" spellcheck="false" autocorrect="off"
+      style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:15px;outline:none;margin-bottom:16px">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button id="rename-cancel" style="padding:10px 20px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+      <button id="rename-ok" style="padding:10px 20px;border-radius:10px;background:var(--accent);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Save</button>
+    </div>
+  </div>
+</div>
 <!-- Custom confirm dialog -->
 <div id="app-confirm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px 16px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6);margin:0 16px">
@@ -1996,11 +2008,13 @@ function renderSongActionBtns(confirmDelete){
   } else {
     btns.innerHTML=`
       <button class="action-btn" id="sa-edit"><span class="action-btn-icon">✎</span>Edit song</button>
+      <button class="action-btn" id="sa-rename"><span class="action-btn-icon">Aa</span>Rename</button>
       <button class="action-btn" id="sa-setlist"><span class="action-btn-icon">${inSL?'✓':'+'}</span>${inSL?'Remove from setlist':'Add to setlist'}</button>
       <button class="action-btn" id="sa-delete" style="color:var(--danger)"><span class="action-btn-icon">🗑</span>Delete song</button>
       <button class="action-btn" id="sa-close" style="justify-content:center;color:var(--text3)">Cancel</button>
     `;
     document.getElementById('sa-edit').addEventListener('click',()=>{closeSongActions();openModal(currentSong.id);});
+    document.getElementById('sa-rename').addEventListener('click',()=>{ closeSongActions(); showRenameDialog(currentSong); });
     document.getElementById('sa-setlist').addEventListener('click',()=>{
       if(!currentSong)return;
       const sl=activeSetlist();
@@ -2016,6 +2030,33 @@ function renderSongActionBtns(confirmDelete){
 function closeSongActions(){
   document.getElementById('song-action-overlay').classList.remove('open');
   document.getElementById('song-action-sheet').classList.remove('open');
+}
+
+function showRenameDialog(song){
+  const overlay = document.getElementById('rename-overlay');
+  const input   = document.getElementById('rename-input');
+  const okBtn   = document.getElementById('rename-ok');
+  const cancelBtn = document.getElementById('rename-cancel');
+  input.value = song.title;
+  overlay.style.display = 'flex';
+  setTimeout(()=>{ input.focus(); input.select(); }, 100);
+  const cleanup = ()=>{ overlay.style.display='none'; okBtn.onclick=null; cancelBtn.onclick=null; input.onkeydown=null; };
+  okBtn.onclick = ()=>{
+    const newTitle = input.value.trim();
+    if(!newTitle){ toast('Title cannot be empty'); return; }
+    song.title = newTitle;
+    const idx = songs.findIndex(s=>s.id===song.id);
+    if(idx!==-1) songs[idx].title = newTitle;
+    if(currentSong && currentSong.id===song.id){
+      currentSong.title = newTitle;
+      document.getElementById('sv-title').textContent = newTitle;
+    }
+    save(); renderLibrary();
+    toast('Renamed!');
+    cleanup();
+  };
+  cancelBtn.onclick = cleanup;
+  input.onkeydown = e=>{ if(e.key==='Enter'){ e.preventDefault(); okBtn.click(); } if(e.key==='Escape') cleanup(); };
 }
 document.getElementById('song-title-btn').addEventListener('click',openSongActions);
 document.getElementById('song-action-overlay').addEventListener('click',closeSongActions);
@@ -3679,8 +3720,11 @@ document.getElementById('speed-val') && (document.getElementById('speed-val').te
     const keyboardOpen = vph < screenH * 0.72;
 
     // Hide fields when keyboard is open
+    // Don't collapse if title/artist field has focus (user is typing in it)
+    const titleFocused = document.activeElement &&
+      (document.activeElement.id==='form-title'||document.activeElement.id==='form-artist');
     const fields = document.getElementById('modal-fields');
-    if(fields && !window._suppressFieldExpand){
+    if(fields && !window._suppressFieldExpand && !titleFocused){
       fields.style.maxHeight = keyboardOpen ? '0' : '300px';
       fields.style.opacity   = keyboardOpen ? '0' : '1';
       fields.style.borderBottomWidth = keyboardOpen ? '0' : '';
