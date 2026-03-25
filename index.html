@@ -457,11 +457,25 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 /* ── CHORD BAR NEW ── */
 #chord-bar::-webkit-scrollbar,#chord-history-bar::-webkit-scrollbar{display:none}
-.chord-root-btn{padding:6px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
-.chord-root-btn:active{background:var(--accent);color:#0d0f14}
-.chord-root-btn.active{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
-.chord-var-btn{padding:5px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
-.chord-var-btn.natural{color:var(--text);font-weight:700;background:var(--surface3)}
+/* Chord builder button base */
+.chord-root-btn{padding:6px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--accent);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.chord-root-btn:active,.chord-root-btn.active{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
+/* chord-var-btn used for accidentals, quality, bass — colour set by data-section */
+.chord-var-btn{padding:5px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+/* Accidental section — blue */
+.chord-var-btn[data-section="acc"]{border-color:#4f86c6;color:#4f86c6}
+.chord-var-btn[data-section="acc"].natural{background:#4f86c6;color:#0d0f14;border-color:#4f86c6}
+/* Quality section — green */
+.chord-var-btn[data-section="qual"]{border-color:var(--chord);color:var(--chord)}
+.chord-var-btn[data-section="qual"].natural{background:var(--chord);color:#0d0f14;border-color:var(--chord)}
+/* Slash/bass section — purple */
+.chord-var-btn[data-section="slash"]{border-color:#b388ff;color:#b388ff}
+.chord-var-btn[data-section="slash"].natural{background:#b388ff;color:#0d0f14;border-color:#b388ff}
+/* Grid preview chords */
+.chord-var-btn[data-section="grid"]{border-color:var(--border);color:var(--text2)}
+.chord-var-btn[data-section="grid"].natural{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
+/* Song chords pill */
+.chord-song-pill{padding:4px 10px;border-radius:7px;background:var(--surface3);border:1px solid var(--chord);color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .chord-history-pill{padding:4px 10px;border-radius:7px;background:var(--surface3);border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .chord-history-pill.from-song{border-color:var(--chord);color:var(--chord)}
 .chord-search-item{padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);cursor:pointer}
@@ -1999,8 +2013,9 @@ function updateBuilderGrid(chord){
   matches.forEach((c, idx)=>{
     const b = document.createElement('button');
     b.className = 'chord-var-btn' + (c === chord ? ' natural' : '');
+    b.dataset.section = 'grid';
     b.textContent = c;
-    b.style.cssText = 'text-align:center;width:100%' + (c === chord ? ';outline:2px solid var(--accent)' : '');
+    b.style.cssText = 'text-align:center;width:100%';
     cbWireInsert(b, c);
     grid.appendChild(b);
   });
@@ -2057,25 +2072,36 @@ function renderBuilderSteps(){
 
     // Accidentals
     [['♮',''],['#','#'],['b','b']].forEach(([label,val])=>{
-      steps.appendChild(makeBtn(label, '', ()=>{ cbAccidental=val; }));
+      const b = makeBtn(label, '', ()=>{ cbAccidental=val; });
+      b.dataset.section = 'acc';
+      steps.appendChild(b);
     });
     steps.appendChild(makeSep());
 
     // Qualities
     CHORD_QUALITIES.forEach(q=>{
-      steps.appendChild(makeBtn(q, '', ()=>{ cbQuality = cbQuality===q ? '' : q; }));
+      const b = makeBtn(q, '', ()=>{ cbQuality = cbQuality===q ? '' : q; });
+      b.dataset.section = 'qual';
+      steps.appendChild(b);
     });
     steps.appendChild(makeSep());
 
     // Slash section
     if(!cbSlash){
-      steps.appendChild(makeBtn('/', '', ()=>{ cbSlash=true; cbBassRoot=''; cbBassAcc=''; }));
+      const b = makeBtn('/', '', ()=>{ cbSlash=true; cbBassRoot=''; cbBassAcc=''; });
+      b.dataset.section = 'slash';
+      steps.appendChild(b);
     } else {
       CHORD_ROOTS.forEach(r=>{
-        steps.appendChild(makeBtn(r, '', ()=>{ cbBassRoot=r; cbBassAcc=''; }));
+        const b = makeBtn(r, '', ()=>{ cbBassRoot=r; cbBassAcc=''; });
+        b.dataset.section = 'slash';
+        steps.appendChild(b);
       });
-      steps.appendChild(makeBtn('#', '', ()=>{ cbBassAcc = cbBassAcc==='#' ? '' : '#'; }));
+      const sharpBtn = makeBtn('#', '', ()=>{ cbBassAcc = cbBassAcc==='#' ? '' : '#'; });
+      sharpBtn.dataset.section = 'slash';
+      steps.appendChild(sharpBtn);
       const cancelBtn = makeBtn('✕/', '', ()=>{ cbSlash=false; cbBassRoot=''; cbBassAcc=''; }, true);
+      cancelBtn.dataset.section = 'slash';
       steps.appendChild(cancelBtn);
     }
   }
@@ -2180,16 +2206,11 @@ function getChordsFromSong(){
   const raw = editorMode === 'chart'
     ? chartToChordPro(ct ? ct.value : '')
     : (ta ? ta.value : '');
-  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
-              - (typeof capo !== 'undefined' ? capo : 0);
   const found = new Set();
   const re = /\[([^\]]+)\]/g;
   let m;
-  while((m = re.exec(raw)) !== null){
-    const transposed = steps !== 0 ? transposeChord(m[1], steps) : m[1];
-    found.add(transposed);
-  }
-  return [...found].filter(c => c.length > 0).slice(0, 12);
+  while((m = re.exec(raw)) !== null){ found.add(m[1]); }
+  return [...found].filter(c => c.length > 0);
 }
 
 function renderChordHistory(){
@@ -2197,20 +2218,14 @@ function renderChordHistory(){
   if(!bar) return;
   bar.innerHTML = '';
   const songChords = getChordsFromSong();
-  const steps = (typeof currentTranspose !== 'undefined' ? currentTranspose : 0)
-              - (typeof capo !== 'undefined' ? capo : 0);
-  const recent = recentChords.slice(0,8).map(c=> steps !== 0 ? transposeChord(c, steps) : c);
-  const seen = new Set();
-  const all = [...songChords, ...recent].filter(c=>{ if(seen.has(c)) return false; seen.add(c); return true; }).slice(0,16);
-  if(!all.length){
-    bar.innerHTML = '<span style="font-size:11px;color:var(--text3);padding:2px 4px">No history yet</span>';
+  if(!songChords.length){
+    bar.innerHTML = '<span style="font-size:11px;color:var(--text3);padding:2px 4px">Song chords appear here</span>';
     return;
   }
-  all.forEach(chord=>{
+  songChords.forEach(chord=>{
     const btn = document.createElement('button');
-    btn.className = 'chord-history-pill' + (songChords.includes(chord) ? ' from-song' : '');
+    btn.className = 'chord-song-pill';
     btn.textContent = chord;
-    // Use cbWireInsert so it resets builder after inserting
     cbWireInsert(btn, chord);
     bar.appendChild(btn);
   });
@@ -2611,7 +2626,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
-// ── CURSOR MEMORY ──
+// ── CURSOR MEMORY + CHORD BAR AUTO-REFRESH ──
 document.addEventListener('DOMContentLoaded',()=>{
   const ta = document.getElementById('form-lyrics');
   const ct = document.getElementById('chart-textarea');
@@ -2623,6 +2638,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     el.addEventListener('blur', ()=>{ chordBarLastCursor = el.selectionStart; });
   }
   saveCursor(ta); saveCursor(ct);
+  // Refresh song chords bar when content changes
+  let _refreshTimer = null;
+  function scheduleRefresh(){ clearTimeout(_refreshTimer); _refreshTimer = setTimeout(renderChordHistory, 400); }
+  if(ta) ta.addEventListener('input', scheduleRefresh);
+  if(ct) ct.addEventListener('input', scheduleRefresh);
 });
 
 function setEditorMode(mode){
