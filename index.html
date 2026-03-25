@@ -986,6 +986,17 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 <div id="chord-tooltip"><div class="ct-name" id="tt-chord"></div><div class="ct-notes" id="tt-notes"></div></div>
 <div id="toast"></div>
+<!-- Custom confirm dialog -->
+<div id="app-confirm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px 16px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6);margin:0 16px">
+    <div id="app-confirm-title" style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px"></div>
+    <div id="app-confirm-msg" style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:20px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button id="app-confirm-cancel" style="padding:10px 20px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+      <button id="app-confirm-ok" style="padding:10px 20px;border-radius:10px;background:var(--accent);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">OK</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ===== MUSIC THEORY =====
@@ -1065,6 +1076,24 @@ function save(){
   localStorage.setItem('cb_recent_chords',JSON.stringify(recentChords));
 }
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}
+
+function appConfirm(msg, onOk, {title='', okLabel='OK', okDanger=false}={}){
+  const overlay = document.getElementById('app-confirm-overlay');
+  const titleEl = document.getElementById('app-confirm-title');
+  const msgEl   = document.getElementById('app-confirm-msg');
+  const okBtn   = document.getElementById('app-confirm-ok');
+  const cancelBtn = document.getElementById('app-confirm-cancel');
+  titleEl.textContent = title;
+  titleEl.style.display = title ? '' : 'none';
+  msgEl.textContent = msg;
+  okBtn.textContent = okLabel;
+  okBtn.style.background = okDanger ? 'var(--danger)' : 'var(--accent)';
+  okBtn.style.color = '#0d0f14';
+  overlay.style.display = 'flex';
+  const cleanup = () => { overlay.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; };
+  okBtn.onclick = () => { cleanup(); onOk(); };
+  cancelBtn.onclick = () => cleanup();
+}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function tagEmoji(t){return t==='worship'?'🙌':t==='hymn'?'📖':'🎵';}
 function activeSetlist(){return setlists.length?setlists[Math.min(activeSetlistIdx,setlists.length-1)]:null;}
@@ -1904,11 +1933,11 @@ function renderSetlist(){
 document.getElementById('setlist-name').addEventListener('input',e=>{const sl=activeSetlist();if(sl){sl.name=e.target.value;save();document.getElementById('sl-picker-name').textContent=e.target.value||'Untitled';}});
 document.getElementById('delete-setlist-btn').addEventListener('click',()=>{
   const sl=activeSetlist();if(!sl)return;
-  if(confirm(`Delete "${sl.name}"?`)){
+  appConfirm(`Delete "${sl.name}"?`, ()=>{
     setlists.splice(activeSetlistIdx,1);
     activeSetlistIdx=Math.max(0,activeSetlistIdx-1);
     save();renderSetlist();
-  }
+  }, {okLabel:'Delete', okDanger:true});
 });
 document.getElementById('present-btn').addEventListener('click',()=>{const sl=activeSetlist();if(!sl)return;if(sl.songs.length)openSong(sl.songs[0],[...sl.songs]);else toast('Add songs first');});
 document.getElementById('share-setlist-btn').addEventListener('click',()=>{
@@ -2027,7 +2056,12 @@ document.getElementById('export-btn').addEventListener('click',()=>{
   const b=new Blob([JSON.stringify({songs,setlists},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='corded.json';a.click();toast('Exported!');
 });
-document.getElementById('clear-btn').addEventListener('click',()=>{if(confirm('Clear all songs?')){songs=[];setlists=[{id:'1',name:'Sunday Morning',songs:[]}];activeSetlistIdx=0;save();renderLibrary();renderSetlist();toast('Cleared');closeDrawer();}});
+document.getElementById('clear-btn').addEventListener('click',()=>{
+  appConfirm('Clear all songs?', ()=>{
+    songs=[];setlists=[{id:'1',name:'Sunday Morning',songs:[]}];activeSetlistIdx=0;
+    save();renderLibrary();renderSetlist();toast('Cleared');closeDrawer();
+  }, {title:'Clear Library', okLabel:'Clear', okDanger:true});
+});
 
 // ===== CHORD BUILDER =====
 // Normalise slash chord bass note to always use sharps (D/Gb → D/F#)
@@ -2905,7 +2939,7 @@ document.getElementById('modal-cancel').addEventListener('click',()=>{
 
 // ✕ Discard: abandon changes
 document.getElementById('modal-discard').addEventListener('click',()=>{
-  if(confirm('Discard changes?')){ closeModal(); }
+  appConfirm('Discard all changes?', ()=>{ closeModal(); }, {title:'Discard Changes', okLabel:'Discard', okDanger:true});
 });
 
 // Undo / Redo
@@ -3406,17 +3440,12 @@ document.getElementById('select-bar-cancel').addEventListener('click',()=>clearS
 document.getElementById('sel-delete').addEventListener('click',()=>{
   const count = selectedSongs.size;
   if(!count) return;
-  if(!confirm(`Delete ${count} song${count!==1?'s':''}? This cannot be undone.`)) return;
-  // Remove selected songs from library and all setlists
-  songs = songs.filter(s=>!selectedSongs.has(s.id));
-  setlists.forEach(sl=>{
-    sl.songs = sl.songs.filter(id=>!selectedSongs.has(id));
-  });
-  save();
-  clearSelection();
-  renderLibrary();
-  renderSetlist();
-  toast(`${count} song${count!==1?'s':''} deleted`);
+  appConfirm(`Delete ${count} song${count!==1?'s':''}? This cannot be undone.`, ()=>{
+    songs = songs.filter(s=>!selectedSongs.has(s.id));
+    setlists.forEach(sl=>{ sl.songs = sl.songs.filter(id=>!selectedSongs.has(id)); });
+    save();clearSelection();renderLibrary();renderSetlist();
+    toast(`${count} song${count!==1?'s':''} deleted`);
+  }, {title:'Delete Songs', okLabel:'Delete', okDanger:true});
 });
 
 // Create new setlist
@@ -3889,9 +3918,9 @@ async function chooseBackupFolder(){
     try {
       await handle.getFileHandle(BACKUP_FILENAME);
       // File exists — ask user
-      if(confirm('A backup file was found in this folder. Restore from backup?')){
+      appConfirm('A backup file was found in this folder. Restore from it?', async ()=>{
         await doRestore();
-      }
+      }, {title:'Backup Found', okLabel:'Restore'});
       // Don't auto-backup on choose — let user manually backup or wait for app close
     } catch(e){
       if(e.name === 'NotFoundError'){
