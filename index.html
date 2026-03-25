@@ -282,7 +282,7 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 .remove-btn:hover{background:rgba(230,57,70,.15);color:var(--danger)}
 
 /* ── MODAL ── */
-#modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;display:none;flex-direction:column;background:var(--bg);overflow:hidden;touch-action:pan-y;scrollbar-width:none}
+#modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;display:none;flex-direction:column;background:var(--bg);overflow:hidden;scrollbar-width:none}
 #modal-overlay::-webkit-scrollbar{display:none}
 #modal-overlay.open{display:flex}
 #modal-sheet{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:0;min-height:0;scrollbar-width:none}
@@ -458,10 +458,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 /* ── CHORD BAR NEW ── */
 #chord-bar::-webkit-scrollbar,#chord-history-bar::-webkit-scrollbar{display:none}
 /* Chord builder button base */
-.chord-root-btn{padding:6px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--accent);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.chord-root-btn{padding:6px 12px;border-radius:8px;background:var(--surface3);border:1px solid var(--accent);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 .chord-root-btn:active,.chord-root-btn.active{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
 /* chord-var-btn used for accidentals, quality, bass — colour set by data-section */
-.chord-var-btn{padding:5px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.chord-var-btn{padding:6px 11px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 /* Accidental section — blue */
 .chord-var-btn[data-section="acc"]{border-color:#4f86c6;color:#4f86c6}
 .chord-var-btn[data-section="acc"].natural{background:#4f86c6;color:#0d0f14;border-color:#4f86c6}
@@ -471,6 +471,9 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 /* Slash/bass section — purple */
 .chord-var-btn[data-section="slash"]{border-color:#b388ff;color:#b388ff}
 .chord-var-btn[data-section="slash"].natural{background:#b388ff;color:#0d0f14;border-color:#b388ff}
+/* Bass # — teal so it's distinct from accidental # */
+.chord-var-btn[data-section="bass#"]{border-color:#26c6da;color:#26c6da}
+.chord-var-btn[data-section="bass#"].natural{background:#26c6da;color:#0d0f14;border-color:#26c6da}
 /* Grid preview chords */
 .chord-var-btn[data-section="grid"]{border-color:var(--border);color:var(--text2)}
 .chord-var-btn[data-section="grid"].natural{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
@@ -826,12 +829,16 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <div id="chord-bar" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x">
         <!-- Populated by renderChordBar() -->
       </div>
-      <!-- Builder panel: step options + preview + grid -->
+      <!-- Builder panel: 3 rows + preview + grid -->
       <div id="chord-builder-panel" style="display:none;border-top:1px solid var(--border)">
-        <!-- Step buttons row -->
-        <div id="chord-builder-steps" style="display:flex;align-items:center;gap:5px;padding:5px 8px;overflow-x:auto;scrollbar-width:none;flex-wrap:wrap"></div>
+        <!-- Row 1: Accidentals (blue, never scrolls) -->
+        <div id="cb-row-acc" style="display:flex;align-items:center;gap:4px;padding:4px 8px 2px;flex-wrap:nowrap"></div>
+        <!-- Row 2: Qualities (green, scrollable) -->
+        <div id="cb-row-qual" style="display:flex;align-items:center;gap:4px;padding:4px 8px;overflow-x:scroll;scrollbar-width:none;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;touch-action:pan-x"></div>
+        <!-- Row 3: Bass / slash (purple, scrollable) -->
+        <div id="cb-row-slash" style="display:flex;align-items:center;gap:4px;padding:4px 8px;overflow-x:scroll;scrollbar-width:none;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;touch-action:pan-x"></div>
         <!-- Preview + reset -->
-        <div id="chord-builder-preview-row" style="display:flex;align-items:center;gap:6px;padding:2px 8px 5px">
+        <div id="chord-builder-preview-row" style="display:flex;align-items:center;gap:6px;padding:3px 8px 4px;border-top:1px solid var(--border)">
           <span style="font-size:11px;color:var(--text3)">Chord:</span>
           <span id="chord-builder-preview" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent);flex:1"></span>
           <button id="chord-builder-insert" style="padding:4px 12px;border-radius:7px;background:var(--chord);border:none;color:#0d0f14;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer">Insert</button>
@@ -841,7 +848,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
         <div id="chord-builder-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 8px 6px;max-height:108px;overflow-y:auto"></div>
       </div>
       <!-- History row + auto-bracket -->
-      <div style="display:flex;align-items:center;border-top:1px solid var(--border);touch-action:pan-x;overflow:hidden">
+      <div style="display:flex;align-items:center;border-top:1px solid var(--border)">
         <div id="chord-history-bar" style="flex:1;display:flex;align-items:center;gap:5px;padding:3px 8px 5px;overflow-x:scroll;scrollbar-width:none;min-height:32px;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;flex-wrap:nowrap">
           <!-- Populated by renderChordHistory() -->
         </div>
@@ -2023,106 +2030,114 @@ function updateBuilderGrid(chord){
 
 function cbWireInsert(btn, chord){
   btn.addEventListener('mousedown', e=>e.preventDefault());
-  btn.addEventListener('touchstart', e=>e.preventDefault(),{passive:false});
+  // Don't preventDefault on touchstart — allows parent row to scroll
+  let _moved=false, _x=0, _y=0;
+  btn.addEventListener('touchstart', e=>{
+    _moved=false; _x=e.touches[0].clientX; _y=e.touches[0].clientY;
+  },{passive:true});
+  btn.addEventListener('touchmove', e=>{
+    if(Math.abs(e.touches[0].clientX-_x)>5||Math.abs(e.touches[0].clientY-_y)>5) _moved=true;
+  },{passive:true});
   btn.addEventListener('touchend', e=>{
+    if(_moved) return; // was a scroll
     e.preventDefault();
     insertChord(chord);
     cbReset();
-    renderChordHistory();
+    setTimeout(renderChordHistory, 50);
   },{passive:false});
-  btn.addEventListener('click', ()=>{ insertChord(chord); cbReset(); renderChordHistory(); });
+  btn.addEventListener('click', ()=>{ insertChord(chord); cbReset(); setTimeout(renderChordHistory, 50); });
+}
+
+function makeBuilderBtn(label, section, onClick){
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.className = 'chord-var-btn';
+  b.dataset.btnKey = section + ':' + label;
+  b.dataset.section = section;
+  b.style.cssText = 'text-align:center;flex-shrink:0';
+  b.addEventListener('mousedown', e=>e.preventDefault());
+  // Don't preventDefault on touchstart — allows row to scroll freely
+  // Track movement to distinguish tap from scroll
+  let _bMoved = false, _bX = 0, _bY = 0;
+  b.addEventListener('touchstart', e=>{
+    _bMoved = false;
+    _bX = e.touches[0].clientX;
+    _bY = e.touches[0].clientY;
+    window._suppressFieldExpand = true;
+    setTimeout(()=>{ window._suppressFieldExpand = false; }, 600);
+  },{passive:true});
+  b.addEventListener('touchmove', e=>{
+    if(Math.abs(e.touches[0].clientX-_bX)>5||Math.abs(e.touches[0].clientY-_bY)>5) _bMoved=true;
+  },{passive:true});
+  b.addEventListener('touchend', e=>{
+    if(_bMoved) return; // was a scroll — ignore
+    e.preventDefault();
+    onClick(); cbUpdateStates();
+  },{passive:false});
+  b.addEventListener('click', ()=>{ onClick(); cbUpdateStates(); });
+  return b;
 }
 
 function renderBuilderSteps(){
-  const steps = document.getElementById('chord-builder-steps');
-  if(!steps || !cbRoot) return;
+  const rowAcc   = document.getElementById('cb-row-acc');
+  const rowQual  = document.getElementById('cb-row-qual');
+  const rowSlash = document.getElementById('cb-row-slash');
+  if(!rowAcc || !cbRoot) return;
 
-  // Only rebuild DOM if structure needs to change (slash mode toggled)
-  const needsRebuild = steps.dataset.slashMode !== String(cbSlash) || steps.dataset.hasRoot !== cbRoot;
+  // Only rebuild if not yet built for this root
+  if(rowAcc.dataset.built === cbRoot) { cbUpdateStates(); return; }
+  rowAcc.dataset.built = cbRoot;
 
-  if(needsRebuild){
-    steps.innerHTML = '';
-    steps.dataset.slashMode = String(cbSlash);
-    steps.dataset.hasRoot = cbRoot;
+  // ── Row 1: Accidentals ──
+  rowAcc.innerHTML = '';
+  [['♮',''],['#','#'],['b','b']].forEach(([label,val])=>{
+    rowAcc.appendChild(makeBuilderBtn(label, 'acc', ()=>{ cbAccidental=val; }));
+  });
 
-    function makeBtn(label, cls, onClick, danger){
-      const b = document.createElement('button');
-      b.textContent = label;
-      b.className = 'chord-var-btn';
-      b.dataset.btnKey = label;
-      if(danger) b.style.color = 'var(--danger)';
-      b.style.cssText = (b.style.cssText||'') + ';min-width:44px;text-align:center;flex-shrink:0';
-      b.addEventListener('mousedown', e=>e.preventDefault());
-      b.addEventListener('touchstart', e=>{
-        e.preventDefault();
-        window._suppressFieldExpand = true;
-        setTimeout(()=>{ window._suppressFieldExpand = false; }, 600);
-      },{passive:false});
-      b.addEventListener('touchend', e=>{ e.preventDefault(); onClick(); cbUpdate(); },{passive:false});
-      b.addEventListener('click', ()=>{ onClick(); cbUpdate(); });
-      return b;
-    }
+  // ── Row 2: Qualities ──
+  rowQual.innerHTML = '';
+  CHORD_QUALITIES.forEach(q=>{
+    rowQual.appendChild(makeBuilderBtn(q, 'qual', ()=>{ cbQuality = cbQuality===q ? '' : q; }));
+  });
 
-    function makeSep(){
-      const s = document.createElement('span');
-      s.style.cssText = 'color:var(--border);font-size:16px;padding:0 2px;flex-shrink:0';
-      s.textContent = '|';
-      return s;
-    }
+  // ── Row 3: Slash/bass ──
+  rowSlash.innerHTML = '';
+  // Static "/" label
+  const slashLabel = document.createElement('span');
+  slashLabel.textContent = '/';
+  slashLabel.style.cssText = 'color:#b388ff;font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;padding:0 4px;flex-shrink:0';
+  rowSlash.appendChild(slashLabel);
+  // Bass root buttons — tapping directly sets bass root (implies slash)
+  CHORD_ROOTS.forEach(r=>{
+    rowSlash.appendChild(makeBuilderBtn(r, 'slash', ()=>{ cbSlash=true; cbBassRoot=r; }));
+  });
+  // Bass sharp
+  rowSlash.appendChild(makeBuilderBtn('#', 'bass#', ()=>{ cbBassAcc = cbBassAcc==='#' ? '' : '#'; }));
 
-    // Accidentals
-    [['♮',''],['#','#'],['b','b']].forEach(([label,val])=>{
-      const b = makeBtn(label, '', ()=>{ cbAccidental=val; });
-      b.dataset.section = 'acc';
-      steps.appendChild(b);
-    });
-    steps.appendChild(makeSep());
-
-    // Qualities
-    CHORD_QUALITIES.forEach(q=>{
-      const b = makeBtn(q, '', ()=>{ cbQuality = cbQuality===q ? '' : q; });
-      b.dataset.section = 'qual';
-      steps.appendChild(b);
-    });
-    steps.appendChild(makeSep());
-
-    // Slash section
-    if(!cbSlash){
-      const b = makeBtn('/', '', ()=>{ cbSlash=true; cbBassRoot=''; cbBassAcc=''; });
-      b.dataset.section = 'slash';
-      steps.appendChild(b);
-    } else {
-      CHORD_ROOTS.forEach(r=>{
-        const b = makeBtn(r, '', ()=>{ cbBassRoot=r; cbBassAcc=''; });
-        b.dataset.section = 'slash';
-        steps.appendChild(b);
-      });
-      const sharpBtn = makeBtn('#', '', ()=>{ cbBassAcc = cbBassAcc==='#' ? '' : '#'; });
-      sharpBtn.dataset.section = 'slash';
-      steps.appendChild(sharpBtn);
-      const cancelBtn = makeBtn('✕/', '', ()=>{ cbSlash=false; cbBassRoot=''; cbBassAcc=''; }, true);
-      cancelBtn.dataset.section = 'slash';
-      steps.appendChild(cancelBtn);
-    }
-  }
-
-  // Always just update active states — no DOM rebuild
   cbUpdateStates();
 }
 
 function cbUpdateStates(){
-  const steps = document.getElementById('chord-builder-steps');
-  if(!steps) return;
-  steps.querySelectorAll('.chord-var-btn').forEach(b=>{
-    const k = b.dataset.btnKey;
-    let isActive = false;
-    if(k==='♮') isActive = cbAccidental==='';
-    else if(k==='#' && b.closest('#chord-builder-steps')) isActive = cbSlash ? cbBassAcc==='#' : cbAccidental==='#';
-    else if(k==='b') isActive = cbAccidental==='b';
-    else if(CHORD_QUALITIES.includes(k)) isActive = cbQuality===k;
-    else if(CHORD_ROOTS.includes(k) && cbSlash) isActive = cbBassRoot===k;
+  // Row 1: accidentals
+  const rowAcc = document.getElementById('cb-row-acc');
+  if(rowAcc) rowAcc.querySelectorAll('.chord-var-btn').forEach(b=>{
+    const label = b.textContent;
+    const isActive = (label==='♮' && cbAccidental==='') || (label==='#' && cbAccidental==='#') || (label==='b' && cbAccidental==='b');
     b.classList.toggle('natural', isActive);
-    b.style.outline = isActive ? '2px solid var(--accent)' : '';
+  });
+  // Row 2: qualities
+  const rowQual = document.getElementById('cb-row-qual');
+  if(rowQual) rowQual.querySelectorAll('.chord-var-btn').forEach(b=>{
+    b.classList.toggle('natural', b.textContent === cbQuality);
+  });
+  // Row 3: slash/bass
+  const rowSlash = document.getElementById('cb-row-slash');
+  if(rowSlash) rowSlash.querySelectorAll('.chord-var-btn').forEach(b=>{
+    const sec = b.dataset.section;
+    const isActive = sec==='slash' ? (cbSlash && b.textContent===cbBassRoot)
+                   : sec==='bass#' ? (cbBassAcc==='#')
+                   : false;
+    b.classList.toggle('natural', isActive);
   });
   // Update preview
   const chord = cbChord();
@@ -2188,8 +2203,8 @@ function startBuilder(root, btn){
   document.querySelectorAll('.chord-root-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   // Force steps to rebuild for new root
-  const steps = document.getElementById('chord-builder-steps');
-  if(steps) { steps.dataset.slashMode=''; steps.dataset.hasRoot=''; }
+  const rowAcc = document.getElementById('cb-row-acc');
+  if(rowAcc) rowAcc.dataset.built = '';
   document.getElementById('chord-builder-panel').style.display='block';
   cbUpdate();
 }
@@ -2278,7 +2293,6 @@ function openModal(editId){
   buildKeyDropdown();
   cbReset();
   renderChordBar();
-  renderChordHistory();
   document.querySelectorAll('#tag-picker [data-tag]').forEach(btn=>{
     btn.classList.toggle('selected',btn.dataset.tag===selectedTag);
     btn.onclick=()=>{selectedTag=btn.dataset.tag;document.querySelectorAll('#tag-picker [data-tag]').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');};
@@ -2290,6 +2304,8 @@ function openModal(editId){
   overlay.style.height = (vp ? vp.height : window.innerHeight) + 'px';
   document.body.style.overflow = 'hidden';
   setEditorMode('chart');
+  // Now lyrics are in textarea — render song chords bar
+  renderChordHistory();
   // Init undo/redo
   const ct = document.getElementById('chart-textarea');
   editorOriginalLyrics = ct.value;
@@ -2311,12 +2327,14 @@ let editorDirty = false;
 function editorSnapshot(){
   const ct = document.getElementById('chart-textarea');
   const ta = document.getElementById('form-lyrics');
-  const lyrics = editorMode === 'chart' ? ct.value : ta.value;
+  const el = editorMode === 'chart' ? ct : ta;
+  const lyrics = el.value;
+  const cursor = el.selectionStart;
   // Truncate forward history
   editorHistory = editorHistory.slice(0, editorHistoryIdx + 1);
   // Only push if different from last snapshot
   if(editorHistory.length === 0 || editorHistory[editorHistoryIdx].lyrics !== lyrics){
-    editorHistory.push({lyrics, mode: editorMode});
+    editorHistory.push({lyrics, mode: editorMode, cursor});
     editorHistoryIdx = editorHistory.length - 1;
   }
   editorDirty = lyrics !== editorOriginalLyrics;
@@ -2334,28 +2352,39 @@ function updateEditorUndoRedo(){
 
 function editorUndo(){
   if(editorHistoryIdx <= 0) return;
+  const curPos = getCurrentCursor();
   editorHistoryIdx--;
-  applyEditorSnapshot(editorHistory[editorHistoryIdx]);
+  applyEditorSnapshot(editorHistory[editorHistoryIdx], curPos);
 }
 
 function editorRedo(){
   if(editorHistoryIdx >= editorHistory.length - 1) return;
+  const curPos = getCurrentCursor();
   editorHistoryIdx++;
-  applyEditorSnapshot(editorHistory[editorHistoryIdx]);
+  applyEditorSnapshot(editorHistory[editorHistoryIdx], curPos);
 }
 
-function applyEditorSnapshot(snap){
+function getCurrentCursor(){
+  const ct = document.getElementById('chart-textarea');
+  const ta = document.getElementById('form-lyrics');
+  const el = editorMode === 'chart' ? ct : ta;
+  return el ? el.selectionStart : 0;
+}
+
+function applyEditorSnapshot(snap, preserveCursor){
   const ct = document.getElementById('chart-textarea');
   const ta = document.getElementById('form-lyrics');
   if(snap.mode === 'chart'){
     ct.value = snap.lyrics;
     if(editorMode !== 'chart'){
-      // Switch to chart mode without re-converting (already in chart format)
       editorMode = 'chart';
       ct.style.display = ''; ta.style.display = 'none';
       document.getElementById('mode-chart').classList.add('active');
       document.getElementById('mode-chordpro').classList.remove('active');
     }
+    // Use preserved cursor (where user was) or clamp to text length
+    const pos = preserveCursor != null ? Math.min(preserveCursor, ct.value.length) : (snap.cursor || 0);
+    ct.selectionStart = ct.selectionEnd = pos;
   } else {
     ta.value = snap.lyrics;
     if(editorMode !== 'chordpro'){
@@ -2364,6 +2393,8 @@ function applyEditorSnapshot(snap){
       document.getElementById('mode-chart').classList.remove('active');
       document.getElementById('mode-chordpro').classList.add('active');
     }
+    const pos = preserveCursor != null ? Math.min(preserveCursor, ta.value.length) : (snap.cursor || 0);
+    ta.selectionStart = ta.selectionEnd = pos;
   }
   editorDirty = snap.lyrics !== editorOriginalLyrics;
   updateEditorUndoRedo();
@@ -2455,9 +2486,10 @@ function chartToChordPro(chart){
     // Blank
     if(!line.trim()){ out.push(''); i++; continue; }
     // Is this a chord line? No 3+ lowercase letter sequences (real words), has at least one chord
-    const isChordLine = !/[a-z]{3,}/.test(line) &&
-      /[A-G](?:#|b)?(?:m|maj|min|aug|dim|sus|add|[0-9])*/.test(line) &&
-      !/[a-z]{2,}/.test(line.replace(/[A-G](?:#|b)?(?:m|maj|min|aug|dim|sus|add|[0-9])*/g,''));
+    // A chord line: every non-space token matches a chord pattern
+    const tokens = line.trim().split(/\s+/);
+    const CHORD_PAT = /^[A-G][#b]?(?:m|maj|min|aug|dim|sus|add|[0-9])*(?:\/[A-G][#b]?)?$/;
+    const isChordLine = tokens.length > 0 && tokens.every(t => CHORD_PAT.test(t));
 
     // Chord-only line: isChordLine and next line is blank or another chord line or end
     if(isChordLine && (i + 1 >= lines.length || lines[i+1].trim() === '' || isChordOnlyLine(lines[i+1]) || /^\{/.test(lines[i+1]))){
@@ -2672,8 +2704,10 @@ function setEditorMode(mode){
 
 // Insert chord at cursor in chart mode
 function isChordOnlyLine(line){
-  // A chord line has no sequences of 3+ lowercase letters (i.e. no real words)
-  return !/[a-z]{3,}/.test(line) && /[A-G]/.test(line);
+  if(!line.trim()) return false;
+  const tokens = line.trim().split(/\s+/);
+  const CHORD_PAT = /^[A-G][#b]?(?:m|maj|min|aug|dim|sus|add|[0-9])*(?:\/[A-G][#b]?)?$/;
+  return tokens.length > 0 && tokens.every(t => CHORD_PAT.test(t));
 }
 
 function insertChord(chord){
@@ -2731,6 +2765,7 @@ function insertChord(chord){
     ct.focus();
     addRecent(chord);
     renderRecentChords();
+    editorSnapshot();
     setTimeout(()=>{ renderChordHistory(); ct.focus(); }, 10);
     return;
   }
@@ -2743,6 +2778,7 @@ function insertChord(chord){
   ta.selectionStart = ta.selectionEnd = pos + ins.length;
   chordBarLastCursor = ta.selectionStart;
   ta.focus();
+  editorSnapshot();
   addRecent(chord); renderRecentChords(); renderChordHistory();
 }
 
