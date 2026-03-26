@@ -925,12 +925,17 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <button class="icon-btn" id="qs-close">✕</button>
   </div>
   <div class="qs-body">
-    <!-- Key -->
-    <div class="qs-section-label">Key</div>
-    <div class="qs-key-grid" id="qs-key-grid"></div>
-    <!-- Semitone transpose -->
-    <div class="qs-section-label">Transpose (semitones)</div>
-    <div class="qs-stepper-row">
+    <!-- Master Key -->
+    <div class="qs-section-label">Master Key</div>
+    <div style="margin-bottom:8px">
+      <button id="qs-master-key-btn" style="padding:7px 14px;border-radius:8px;background:transparent;color:#c0392b;border:2px solid #c0392b;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center;margin-bottom:6px">G</button>
+      <div id="qs-master-key-grid" style="display:none"></div>
+    </div>
+    <!-- Transpose Key -->
+    <div class="qs-section-label">Transpose To</div>
+    <div id="qs-key-grid" style="margin-bottom:8px"></div>
+    <!-- Semitone nudge -->
+    <div class="qs-stepper-row" style="margin-bottom:8px">
       <button class="qs-step-btn" id="transpose-down" style="border-radius:10px;flex:1">♭ down</button>
       <button class="qs-step-btn" id="transpose-up" style="border-radius:10px;flex:1;border-left:none">♯ up</button>
     </div>
@@ -1018,6 +1023,9 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 const SHARP_SCALE=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FLAT_SCALE =['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
 const DISPLAY_KEYS=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+// Valid accidentals per natural note — house convention
+const NOTE_ACCS = {C:'#', D:'', E:'b', F:'#', G:'', A:'b', B:'b'};
+const NATURAL_NOTES = ['C','D','E','F','G','A','B'];
 const DEGREE_NAMES=['I','ii','iii','IV','V','vi','vii°'];
 const KEY_DATA={
   'C': {d:['C','Dm','Em','F','G','Am','Bdim'],   s:['Cmaj7','G7','Am7','Dm7','Em7','Fmaj7','C7','Gsus4']},
@@ -1415,18 +1423,8 @@ let setlistContext=null;
 function openSong(id, context){
   currentSong=songs.find(s=>s.id===id);if(!currentSong)return;
   setlistContext=context||null;
+  // Restore saved transpose — song.key is the master, song.transpose is the display offset
   currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;showChords=true;
-
-  // Detect actual key from chords and sync song.key if out of sync
-  const detectedKey = detectSongKey(currentSong.lyrics);
-  if(detectedKey && detectedKey !== currentSong.key && currentTranspose === 0){
-    // Only auto-correct if no manual transpose is active
-    currentSong.key = detectedKey;
-    const idx = songs.findIndex(s=>s.id===currentSong.id);
-    if(idx!==-1) songs[idx].key = detectedKey;
-    save();
-  }
-
   scrollSpeed = currentSong.scrollSpeed ?? defaultScrollSpeed;
   fontSize = currentSong.fontSize ?? parseInt(localStorage.getItem('cb_fontsize')||'15');
   // Load per-song two-col, fall back to global preference
@@ -1513,20 +1511,19 @@ document.getElementById('key-display').addEventListener('click',e=>{
   e.stopPropagation();
   const dd=document.getElementById('key-dropdown');
   if(dd.classList.contains('open')){dd.classList.remove('open');return;}
-  const ck=transposeChord(currentSong?currentSong.key:'G',currentTranspose);
   const inner=document.getElementById('key-dropdown-inner');
-  inner.innerHTML=DISPLAY_KEYS.map(k=>`<button class="kd-btn ${k===ck?'current':''}" data-key="${k}">${k}</button>`).join('');
-  inner.querySelectorAll('.kd-btn').forEach(btn=>{
-    btn.addEventListener('click',e=>{
-      e.stopPropagation();if(!currentSong)return;
+  if(!currentSong){dd.classList.add('open');return;}
+  makeKeySelector(inner,
+    ()=>normaliseNote(transposeChord(currentSong.key,currentTranspose).replace('m','')),
+    (newKey)=>{
       const gi=k=>{const si=SHARP_SCALE.indexOf(k);return si!==-1?si:FLAT_SCALE.indexOf(k);};
-      // Use detected key as source of truth
-      const detectedKey = detectSongKey(currentSong.lyrics);
-      const fromKey = detectedKey || currentSong.key;
-      currentTranspose=((gi(btn.dataset.key)-gi(fromKey))%12+12)%12;
-      renderSongView();dd.classList.remove('open');
-    });
-  });
+      currentTranspose=((gi(newKey)-gi(currentSong.key))%12+12)%12;
+      currentSong.transpose=currentTranspose;
+      const sidx=songs.findIndex(s=>s.id===currentSong.id);
+      if(sidx!==-1) songs[sidx].transpose=currentTranspose;
+      save(); renderSongView(); dd.classList.remove('open');
+    }
+  );
   dd.classList.add('open');
 });
 document.addEventListener('click',()=>{
@@ -1578,10 +1575,12 @@ document.getElementById('capo-display').addEventListener('click', e=>{
 // ===== TRANSPOSE SEMITONE BUTTONS =====
 document.getElementById('transpose-up').addEventListener('click',()=>{
   currentTranspose=(currentTranspose+1)%12;
+  if(currentSong){ currentSong.transpose=currentTranspose; const i=songs.findIndex(s=>s.id===currentSong.id); if(i!==-1)songs[i].transpose=currentTranspose; save(); }
   renderSongView(); refreshQSCapo(); refreshQSKeyGrid();
 });
 document.getElementById('transpose-down').addEventListener('click',()=>{
   currentTranspose=((currentTranspose-1)+12)%12;
+  if(currentSong){ currentSong.transpose=currentTranspose; const i=songs.findIndex(s=>s.id===currentSong.id); if(i!==-1)songs[i].transpose=currentTranspose; save(); }
   renderSongView(); refreshQSCapo(); refreshQSKeyGrid();
 });
 
@@ -2800,17 +2799,105 @@ function chartToChordPro(chart){
 let editorMode = 'chart';
 
 // ── KEY DROPDOWN ──
+// ── Reusable key selector ──
+// container: DOM element to render into
+// getKey: fn() → current key string e.g. 'Am', 'F#'
+// setKey: fn(key) → called when user picks a key
+function makeKeySelector(container, getKey, setKey, accentColor){
+  accentColor = accentColor || null; // null = use default chord green
+  function render(){
+    const current = getKey() || 'C';
+    const isMinor = current.endsWith('m');
+    const root = isMinor ? current.slice(0,-1) : current;
+    let nat = root, acc = '';
+    if(root.length > 1){ nat = root[0]; acc = root[1]; }
+
+    container.innerHTML = '';
+
+    // Single row: 7 natural notes + separator + # or b (if valid) + m
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:8px';
+
+    NATURAL_NOTES.forEach(n => {
+      const btn = document.createElement('button');
+      btn.textContent = n;
+      btn.className = 'qs-key-btn';
+      btn.style.minWidth = '38px';
+      if(nat === n && acc === ''){
+        if(accentColor){ btn.style.background=accentColor; btn.style.color='#fff'; btn.style.borderColor=accentColor; }
+        else btn.classList.add('selected');
+      }
+      btn.addEventListener('click', () => {
+        setKey(n + (isMinor ? 'm' : '')); render();
+      });
+      row.appendChild(btn);
+    });
+
+    // Thin separator
+    const sep = document.createElement('span');
+    sep.style.cssText = 'width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0';
+    row.appendChild(sep);
+
+    // # button — only if current natural supports it
+    if(NOTE_ACCS[nat] === '#'){
+      const sharpBtn = document.createElement('button');
+      sharpBtn.textContent = '#';
+      sharpBtn.className = 'qs-key-btn';
+      sharpBtn.style.minWidth = '34px';
+      if(acc === '#'){
+        if(accentColor){ sharpBtn.style.background=accentColor; sharpBtn.style.color='#fff'; sharpBtn.style.borderColor=accentColor; }
+        else sharpBtn.classList.add('selected');
+      }
+      sharpBtn.addEventListener('click', () => {
+        setKey(nat + (acc==='#'?'':'#') + (isMinor?'m':'')); render();
+      });
+      row.appendChild(sharpBtn);
+    }
+
+    // b button — only if current natural supports it
+    if(NOTE_ACCS[nat] === 'b'){
+      const flatBtn = document.createElement('button');
+      flatBtn.textContent = 'b';
+      flatBtn.className = 'qs-key-btn';
+      flatBtn.style.minWidth = '34px';
+      if(acc === 'b'){
+        if(accentColor){ flatBtn.style.background=accentColor; flatBtn.style.color='#fff'; flatBtn.style.borderColor=accentColor; }
+        else flatBtn.classList.add('selected');
+      }
+      flatBtn.addEventListener('click', () => {
+        setKey(nat + (acc==='b'?'':'b') + (isMinor?'m':'')); render();
+      });
+      row.appendChild(flatBtn);
+    }
+
+    // m button — always shown
+    const minorBtn = document.createElement('button');
+    minorBtn.textContent = 'm';
+    minorBtn.className = 'qs-key-btn';
+    minorBtn.style.minWidth = '34px';
+    if(isMinor){
+      if(accentColor){ minorBtn.style.background=accentColor; minorBtn.style.color='#fff'; minorBtn.style.borderColor=accentColor; }
+      else minorBtn.classList.add('selected');
+    }
+    minorBtn.addEventListener('click', () => {
+      setKey(nat + acc + (isMinor?'':'m')); render();
+    });
+    row.appendChild(minorBtn);
+
+    container.appendChild(row);
+  }
+  render();
+}
+
 function buildKeyDropdown(){
   const grid = document.getElementById('key-dropdown-grid');
   const label = document.getElementById('key-dropdown-label');
   if(!grid||!label) return;
   label.textContent = selectedKey;
-  grid.innerHTML = DISPLAY_KEYS.map(k=>
-    `<button class="chord-var-btn${k===selectedKey?' natural':''}" data-key="${k}" style="min-width:42px;text-align:center">${k}</button>`
-  ).join('');
-  grid.querySelectorAll('[data-key]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const newKey = btn.dataset.key;
+  // Use makeKeySelector for the editor key picker
+  makeKeySelector(grid,
+    () => selectedKey,
+    (newKey) => {
       if(newKey === selectedKey){ closeKeyDropdown(); return; }
       const gi = k=>{ const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
       const steps = ((gi(newKey)-gi(selectedKey))%12+12)%12;
@@ -2829,17 +2916,15 @@ function buildKeyDropdown(){
       }
       selectedKey = newKey;
       label.textContent = newKey;
-      // Update song key immediately so song view reflects new key
       if(editingId){
         const idx=songs.findIndex(s=>s.id===editingId);
         if(idx!==-1){ songs[idx].key=newKey; if(currentSong&&currentSong.id===editingId) currentSong.key=newKey; }
         save();
       }
-      closeKeyDropdown();
       buildKeyDropdown();
       renderChordHistory();
-    });
-  });
+    }
+  );
   setTimeout(()=>{
     const close = e=>{
       const wrap = document.getElementById('key-dropdown-wrap');
@@ -3324,51 +3409,65 @@ function openQS(){
   if(freshSong) currentSong = freshSong;
   // Song name in header
   document.getElementById('qs-song-name').textContent = currentSong.title;
-  // Key grid
-  const rawSoundingKey = transposeChord(currentSong.key, currentTranspose);
-  // Normalize to DISPLAY_KEYS — e.g. A# → Bb
-  const soundingKey = DISPLAY_KEYS.find(k=>{
-    const gi=x=>{const si=SHARP_SCALE.indexOf(x);return si!==-1?si:FLAT_SCALE.indexOf(x);};
-    return gi(k)===gi(rawSoundingKey);
-  }) || rawSoundingKey;
-  const grid = document.getElementById('qs-key-grid');
-  grid.innerHTML = DISPLAY_KEYS.map(k=>
-    `<button class="qs-key-btn ${k===soundingKey?'selected':''}" data-key="${k}">${k}</button>`
-  ).join('');
-  grid.querySelectorAll('.qs-key-btn').forEach(btn=>{
-    function applyKey(){
-      const newKey = btn.dataset.key;
-      const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
-      // Detect actual key from chords rather than trusting song.key
-      const detectedKey = detectSongKey(currentSong.lyrics);
-      const fromKey = detectedKey || currentSong.key;
-      const steps = ((gi(newKey) - gi(fromKey)) % 12 + 12) % 12;
-      if(steps === 0 && fromKey === newKey){ return; }
-      // Transpose all chords permanently
-      const transposedLyrics = currentSong.lyrics.replace(/\[([^\]]+)\]/g, (m, chord) => {
-        return '[' + transposeChord(chord, steps) + ']';
-      });
-      currentSong.lyrics = transposedLyrics;
-      currentSong.key = newKey;
-      currentSong.transpose = 0;
-      currentTranspose = 0;
-      const idx = songs.findIndex(s=>s.id===currentSong.id);
-      if(idx!==-1){
-        songs[idx].lyrics = transposedLyrics;
-        songs[idx].key = newKey;
-        songs[idx].transpose = 0;
-      }
-      save();
-      grid.querySelectorAll('.qs-key-btn').forEach(b=>b.classList.toggle('selected',b.dataset.key===newKey));
-      refreshQSCapo();
-      renderSongView();
-      renderLibrary();
+
+  // ── Master Key button — expands selector below ──
+  const mBtn = document.getElementById('qs-master-key-btn');
+  const masterGrid = document.getElementById('qs-master-key-grid');
+  mBtn.textContent = currentSong.key;
+  masterGrid.style.display = 'none';
+  const newMBtn = mBtn.cloneNode(true);
+  mBtn.parentNode.replaceChild(newMBtn, mBtn);
+  // Ensure correct outline style regardless of what was cloned
+  newMBtn.style.background = 'transparent';
+  newMBtn.style.color = '#c0392b';
+  newMBtn.style.border = '2px solid #c0392b';
+  newMBtn.addEventListener('click', ()=>{
+    const open = masterGrid.style.display !== 'none';
+    masterGrid.style.display = open ? 'none' : 'block';
+    // Filled when expanded, outline when collapsed
+    newMBtn.style.background = open ? 'transparent' : '#c0392b';
+    newMBtn.style.color = open ? '#c0392b' : '#fff';
+    newMBtn.style.border = '2px solid #c0392b';
+    if(!open){
+      makeKeySelector(masterGrid,
+        () => currentSong.key,
+        (newKey) => {
+          currentSong.key = newKey;
+          currentSong.transpose = 0;
+          currentTranspose = 0;
+          const idx = songs.findIndex(s=>s.id===currentSong.id);
+          if(idx!==-1){ songs[idx].key=newKey; songs[idx].transpose=0; }
+          save(); renderSongView(); refreshQSCapo();
+          newMBtn.textContent = newKey;
+          masterGrid.style.display = 'none';
+          // Revert to outline on close
+          newMBtn.style.background = 'transparent';
+          newMBtn.style.color = '#c0392b';
+          newMBtn.style.border = '2px solid #c0392b';
+          // Re-render transpose selector to reflect new master key
+          makeKeySelector(document.getElementById('qs-key-grid'),
+            () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
+            setTransposeKey
+          );
+        }
+      , '#c0392b');
     }
-    btn.addEventListener('touchend', e=>{ e.preventDefault(); e.stopPropagation(); applyKey(); },{passive:false});
-    btn.addEventListener('click', e=>{ e.stopPropagation(); applyKey(); });
   });
-  // Semitone
-  // qs-semi-val removed
+
+  // ── Transpose Key — always visible ──
+  function setTransposeKey(newKey){
+    const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
+    currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
+    currentSong.transpose = currentTranspose;
+    const idx = songs.findIndex(s=>s.id===currentSong.id);
+    if(idx!==-1) songs[idx].transpose = currentTranspose;
+    save(); renderSongView(); refreshQSCapo();
+  }
+  makeKeySelector(document.getElementById('qs-key-grid'),
+    () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
+    setTransposeKey
+  );
+
   // Capo
   document.getElementById('qs-capo-val').textContent = capo;
   refreshQSCapo();
@@ -3389,14 +3488,10 @@ function closeQS(){
 
 function refreshQSKeyGrid(){
   if(!currentSong) return;
-  const raw = transposeChord(currentSong.key, currentTranspose);
-  const gi = x=>{const si=SHARP_SCALE.indexOf(x);return si!==-1?si:FLAT_SCALE.indexOf(x);};
-  const soundingKey = DISPLAY_KEYS.find(k=>gi(k)===gi(raw)) || raw;
-  const grid = document.getElementById('qs-key-grid');
-  if(!grid) return;
-  grid.querySelectorAll('.qs-key-btn').forEach(b =>
-    b.classList.toggle('selected', b.dataset.key === soundingKey)
-  );
+  const mBtn = document.getElementById('qs-master-key-btn');
+  const tBtn = document.getElementById('qs-transpose-key-btn');
+  if(mBtn){ mBtn.textContent = currentSong.key; mBtn.style.background='transparent'; mBtn.style.color='#c0392b'; mBtn.style.border='2px solid #c0392b'; }
+  if(tBtn) tBtn.textContent = normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m',''));
 }
 
 function refreshQSCapo(){
