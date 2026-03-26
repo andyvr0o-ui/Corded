@@ -475,6 +475,8 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 /* Bass # — teal so it's distinct from accidental # */
 .chord-var-btn[data-section="bass#"]{border-color:#26c6da;color:#26c6da}
 .chord-var-btn[data-section="bass#"].natural{background:#26c6da;color:#0d0f14;border-color:#26c6da}
+.chord-var-btn[data-section="bassb"]{border-color:#26c6da;color:#26c6da}
+.chord-var-btn[data-section="bassb"].natural{background:#26c6da;color:#0d0f14;border-color:#26c6da}
 /* Grid preview chords */
 .chord-var-btn[data-section="grid"]{border-color:var(--border);color:var(--text2)}
 .chord-var-btn[data-section="grid"].natural{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
@@ -1112,14 +1114,24 @@ function tagEmoji(t){return t==='worship'?'🙌':t==='hymn'?'📖':'🎵';}
 function activeSetlist(){return setlists.length?setlists[Math.min(activeSetlistIdx,setlists.length-1)]:null;}
 
 // ===== TRANSPOSE =====
+// Normalise a note to the house convention:
+// Only Ab, Bb, Eb are flats — everything else is sharp or natural
+const HOUSE_FLATS = new Set([3,8,10]); // Eb=3, Ab=8, Bb=10 (chromatic indices)
+function normaliseNote(note){
+  const si=SHARP_SCALE.indexOf(note), fi=FLAT_SCALE.indexOf(note);
+  const idx=si!==-1?si:fi; if(idx===-1) return note;
+  // If this index is one of our house flats, use flat; otherwise use sharp
+  return HOUSE_FLATS.has(idx) ? FLAT_SCALE[idx] : SHARP_SCALE[idx];
+}
 function transposeNote(note, steps, forceSharp){
   const si=SHARP_SCALE.indexOf(note), fi=FLAT_SCALE.indexOf(note);
   const idx=si!==-1?si:fi; if(idx===-1) return note;
-  const scale=(forceSharp||!useFlats)?SHARP_SCALE:FLAT_SCALE;
-  return scale[((idx+steps)%12+12)%12];
+  const newIdx=((idx+steps)%12+12)%12;
+  if(forceSharp) return SHARP_SCALE[newIdx]; // bass notes always sharp
+  return HOUSE_FLATS.has(newIdx) ? FLAT_SCALE[newIdx] : SHARP_SCALE[newIdx];
 }
 function transposeChord(chord,steps){
-  // Handle slash chords e.g. D/F# → root follows key preference, bass note always uses sharps
+  // Handle slash chords — root uses house convention, bass always sharp
   const slashIdx = chord.indexOf('/');
   if(slashIdx !== -1){
     const left  = chord.slice(0, slashIdx);
@@ -1127,12 +1139,23 @@ function transposeChord(chord,steps){
     const ml = left.match(/^([A-G][#b]?)(.*)/);
     const mr = right.match(/^([A-G][#b]?)(.*)/);
     const transLeft  = ml ? transposeNote(ml[1],steps,false) + ml[2] : left;
-    const transRight = mr ? transposeNote(mr[1],steps,true)  + mr[2] : right; // always sharp
+    const transRight = mr ? transposeNote(mr[1],steps,true)  + mr[2] : right;
     return transLeft + '/' + transRight;
   }
   const m=chord.match(/^([A-G][#b]?)(.*)/);if(!m)return chord;
   const root=m[1],suffix=m[2];
   return transposeNote(root,steps,false)+suffix;
+}
+
+// Normalise a chord to house convention (Db→C#, Gb→F#, G#→Ab, A#→Bb, D#→Eb)
+function normaliseChord(chord){
+  const slashIdx = chord.indexOf('/');
+  if(slashIdx !== -1){
+    return normaliseChord(chord.slice(0,slashIdx)) + '/' + normaliseChord(chord.slice(slashIdx+1));
+  }
+  const m = chord.match(/^([A-G][#b]?)(.*)/);
+  if(!m) return chord;
+  return normaliseNote(m[1]) + m[2];
 }
 
 // ===== RENDER SONG — TWO-ROW APPROACH =====
@@ -1277,10 +1300,7 @@ function renderSongView(){
   document.getElementById('sv-title').textContent=currentSong.title;
   document.getElementById('sv-artist').textContent=currentSong.artist||'';
   const soundingKey=transposeChord(currentSong.key, currentTranspose - capo);
-  // Auto-use flats for flat keys unless user explicitly chose sharps
-  if(!localStorage.getItem('cb_notation_manual')){
-    useFlats = FLAT_KEYS.has(soundingKey);
-  }
+  // House convention: Ab Bb Eb are flat, everything else sharp — no key-based switching
   const displaySteps = currentTranspose - capo;
   document.getElementById('key-display').textContent = soundingKey + (capo ? ' 𝄪' + capo : '') + ' ▾';
   document.getElementById('capo-display').textContent = capo > 0 ? capo + ' ▾' : '0 ▾';
@@ -2173,7 +2193,7 @@ let cbAccidental = '';  // '', '#', 'b'
 let cbQuality = '';     // e.g. 'm', 'maj7'
 let cbSlash = false;    // adding bass note?
 let cbBassRoot = '';    // e.g. 'F'
-let cbBassAcc = '';     // '#' only
+let cbBassAcc = '';     // '#' or 'b'
 let cbStep = 0;         // 0=root, 1=accidental, 2=quality, 3=slash/done, 4=bass root, 5=bass acc
 let chordBarLastCursor = 0;
 let autoBracket = false;
@@ -2306,6 +2326,7 @@ function renderBuilderSteps(){
   });
   // Bass sharp
   rowSlash.appendChild(makeBuilderBtn('#', 'bass#', ()=>{ cbBassAcc = cbBassAcc==='#' ? '' : '#'; }));
+  rowSlash.appendChild(makeBuilderBtn('b', 'bassb', ()=>{ cbBassAcc = cbBassAcc==='b' ? '' : 'b'; }));
 
   cbUpdateStates();
 }
@@ -2329,6 +2350,7 @@ function cbUpdateStates(){
     const sec = b.dataset.section;
     const isActive = sec==='slash' ? (cbSlash && b.textContent===cbBassRoot)
                    : sec==='bass#' ? (cbBassAcc==='#')
+                   : sec==='bassb' ? (cbBassAcc==='b')
                    : false;
     b.classList.toggle('natural', isActive);
   });
@@ -3007,7 +3029,9 @@ document.getElementById('modal-save').addEventListener('mousedown', e => e.preve
 function doSaveSong(){
   const title=document.getElementById('form-title').innerText.trim();
   if(!title){toast('Please enter a title');return false;}
-  const lyrics = getCurrentLyrics();
+  // Normalise all chords to house convention on save
+  const rawLyrics = getCurrentLyrics();
+  const lyrics = rawLyrics.replace(/\[([^\]]+)\]/g, (m,c)=>'['+normaliseChord(c)+']');
   const song={id:editingId||Date.now().toString(),title,artist:document.getElementById('form-artist').innerText.trim(),key:selectedKey,tag:selectedTag,lyrics};
   if(editingId){const idx=songs.findIndex(s=>s.id===editingId);songs[idx]=song;if(currentSong&&currentSong.id===editingId)currentSong=song;}
   else{songs.push(song);}
