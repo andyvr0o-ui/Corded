@@ -186,10 +186,11 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 /* Each musical line = flex row of (chord-above-lyric) segments that wraps naturally */
 .lyric-pair{display:flex;flex-wrap:wrap;align-items:flex-end;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
 .lyric-seg{display:inline-flex;flex-direction:column;align-items:flex-start;flex-shrink:0;max-width:100%}
-/* font sizes are em so they scale with #song-lyrics font-size */
-.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:pre;min-height:1.1em;cursor:pointer;transition:color var(--t)}
+/* Chord row: relative container so chords can be absolutely positioned */
+.seg-chord-row{position:relative;display:block;min-height:1.2em;white-space:pre}
+.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:pre;cursor:pointer;transition:color var(--t)}
 .seg-chord:hover{color:var(--accent)}
-.seg-chord.empty{visibility:hidden}
+.seg-chord.empty{visibility:hidden;display:block;min-height:1.2em}
 .seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre}
 .spacer-line{height:10px}
 
@@ -1140,49 +1141,88 @@ function parseLine(line,steps,showChordsFlag){
   if(secMatch)return{type:'section',label:secMatch[1].trim()};
   if(/^\{[a-z]+:.*\}/i.test(line)&&!line.includes('['))return null;
   if(!line.trim())return{type:'blank'};
-  const segs=[];let i=0;
-  while(i<line.length){
-    if(line[i]==='['){
-      const bracketPos = i; // position of '[' — needed to check char before it
-      const end=line.indexOf(']',i);
-      if(end!==-1){
-        const raw=line.slice(i+1,end);
-        const chord=transposeChord(raw,steps);
-        i=end+1;
 
-        // char immediately before '[' — is it a non-space? Then chord is mid-word
-        const charBefore = bracketPos > 0 ? line[bracketPos-1] : '';
-        const midWord = charBefore !== '' && charBefore !== ' ';
+  // Build token list: {chord, offset} pairs and the full lyric string in parallel
+  // Strategy: parse into words, each word can have multiple chords at character offsets
+  // A "word" boundary is a space in the lyric text.
 
-        // Read lyric after ']' — but only up to the next space or '[' if mid-word
-        let lyric='';
-        while(i<line.length&&line[i]!=='[')lyric+=line[i++];
-
-        if(midWord && segs.length > 0){
-          // Chord landed mid-word e.g. "you[E] will" or "Ligh[E]t."
-          // Pull trailing non-space chars off previous segment (word prefix)
-          const prev = segs[segs.length-1];
-          const spaceIdx = prev.lyric.search(/\S+$/); // start of last word fragment
-          const wordPrefix = spaceIdx >= 0 ? prev.lyric.slice(spaceIdx) : '';
-          prev.lyric = spaceIdx >= 0 ? prev.lyric.slice(0, spaceIdx) : prev.lyric;
-          // Combined: prefix + whatever follows ']' until space
-          // Only take suffix up to first space (the rest belongs to next word)
-          const spaceInLyric = lyric.indexOf(' ');
-          const suffix = spaceInLyric >= 0 ? lyric.slice(0, spaceInLyric) : lyric;
-          const remainder = spaceInLyric >= 0 ? lyric.slice(spaceInLyric) : '';
-          segs.push({chord:showChordsFlag?chord:'', lyric: wordPrefix + suffix});
-          // Push remainder as a new chord-less segment if any
-          if(remainder) segs.push({chord:'', lyric: remainder});
-        } else {
-          segs.push({chord:showChordsFlag?chord:'',lyric});
-        }
+  // First pass: extract all chords with their lyric position
+  const tokens = []; // {chord, lyricBefore}
+  let i = 0;
+  while(i < line.length){
+    if(line[i] === '['){
+      const end = line.indexOf(']', i);
+      if(end !== -1){
+        const raw = line.slice(i+1, end);
+        const chord = transposeChord(raw, steps);
+        i = end + 1;
+        let lyricAfter = '';
+        while(i < line.length && line[i] !== '[') lyricAfter += line[i++];
+        tokens.push({chord: showChordsFlag ? chord : '', lyric: lyricAfter});
         continue;
       }
     }
-    let lyric='';while(i<line.length&&line[i]!=='[')lyric+=line[i++];
-    if(lyric)segs.push({chord:'',lyric});
+    let lyric = '';
+    while(i < line.length && line[i] !== '[') lyric += line[i++];
+    if(lyric) tokens.push({chord: '', lyric});
   }
-  return{type:'line',segs:segs.filter(s=>s.lyric!==''||s.chord!=='')};
+
+  // Second pass: group tokens into segments
+  // A segment is a "word group" — separated by spaces
+  // Within a word group, multiple chords can appear at different character offsets
+  const segs = [];
+
+  // Build full lyric string with chord positions
+  // Each segment = {chords:[{text,pos}], lyric:'word text including trailing space'}
+  let currentLyric = '';
+  let currentChords = []; // [{text, pos}] where pos = char offset within currentLyric
+
+  const flushSeg = () => {
+    if(currentLyric !== '' || currentChords.length > 0){
+      segs.push({chords: currentChords, lyric: currentLyric});
+      currentLyric = '';
+      currentChords = [];
+    }
+  };
+
+  for(const tok of tokens){
+    const chord = tok.chord;
+    const lyric = tok.lyric;
+
+    if(chord){
+      // Record chord at current position within the current word
+      currentChords.push({text: chord, pos: currentLyric.length});
+    }
+
+    // Now process lyric character by character
+    // Split at word boundaries (spaces), flushing a segment at every space
+    for(let ci = 0; ci < lyric.length; ci++){
+      const ch = lyric[ci];
+      if(ch === ' '){
+        currentLyric += ch;
+        // Always flush at a space — even chord-only segments preserve spacing
+        flushSeg();
+      } else {
+        currentLyric += ch;
+      }
+    }
+  }
+  // Flush any remaining
+  if(currentLyric !== '' || currentChords.length > 0) flushSeg();
+
+  // Handle trailing chord-only tokens (chord with no lyric)
+  // They'll be in segs as {chords:[...], lyric:''} — give them a space
+  // Keep segments that have chords OR have non-whitespace lyric
+  // Also keep space-only segments that separate chord groups
+  const result = segs.map(s => ({chords: s.chords, lyric: s.lyric === '' ? ' ' : s.lyric}));
+  return {type:'line', segs: result.filter((s, idx) => {
+    if(s.chords.length > 0) return true; // always keep chord-bearing segments
+    if(s.lyric.trim() !== '') return true; // keep non-empty lyric segments
+    // Keep space-only segments that sit between two chord-bearing segments
+    const prevHasChord = idx > 0 && result[idx-1].chords.length > 0;
+    const nextHasChord = idx < result.length-1 && result[idx+1].chords.length > 0;
+    return prevHasChord || nextHasChord;
+  })};
 }
 
 // Keys that traditionally use flats
@@ -1263,28 +1303,31 @@ function renderSongView(){
     if(p.type==='blank'){html+='<div class="spacer-line"></div>';continue;}
 
     // Build flex-wrap segments: each seg = chord stacked above lyric
-    // Pad so chord and lyric columns stay aligned even when wrapping
+    // Build flex-wrap segments: each seg = one word with chords absolutely positioned above
     html+='<div class="lyric-pair">';
     for(const seg of p.segs){
-      const c=seg.chord||'';
-      const l=seg.lyric||'';
-      // Split keeping leading whitespace attached to first word
-      // e.g. ' Lord of ' → [' Lord ', 'of ']
-      const words = l.match(/\s*\S+\s*/g) || (l ? [l] : ['']);
-      words.forEach((word, wi)=>{
-        const chord = wi===0 ? c : '';
-        if(chord){
-          html+='<span class="lyric-seg">'
-            +'<span class="seg-chord" data-chord="'+esc(c)+'">'+esc(chord)+'</span>'
-            +'<span class="seg-lyric">'+esc(word)+'</span>'
-            +'</span>';
-        } else {
-          html+='<span class="lyric-seg">'
-            +'<span class="seg-chord empty"></span>'
-            +'<span class="seg-lyric">'+esc(word)+'</span>'
-            +'</span>';
+      const lyric = seg.lyric || '';
+      const chords = seg.chords || [];
+
+      // Build the chord row — chords positioned absolutely at their char offsets
+      let chordRowHtml = '';
+      if(chords.length > 0){
+        // Chord row is relative-positioned, chords sit at ch-unit offsets
+        chordRowHtml = '<span class="seg-chord-row">';
+        for(const ch of chords){
+          const leftStyle = ch.pos > 0 ? `left:${ch.pos}ch` : 'left:0';
+          chordRowHtml += `<span class="seg-chord" data-chord="${esc(ch.text)}" style="position:absolute;${leftStyle}">${esc(ch.text)}</span>`;
         }
-      });
+        chordRowHtml += '</span>';
+      } else {
+        // No chord — render invisible spacer that matches lyric width
+        chordRowHtml = `<span class="seg-chord-row" style="visibility:hidden">${esc(lyric)}</span>`;
+      }
+
+      html += '<span class="lyric-seg">'
+        + chordRowHtml
+        + '<span class="seg-lyric">' + esc(lyric) + '</span>'
+        + '</span>';
     }
     html+='</div>';
   }
