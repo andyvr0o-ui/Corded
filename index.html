@@ -1265,35 +1265,50 @@ const DIATONIC_MAP = {
 };
 
 function detectSongKey(lyrics){
-  // Extract all chord roots from ChordPro lyrics
-  const roots = [];
+  // Extract all chords from ChordPro lyrics in order
+  const chords = [];
   const re = /\[([^\]]+)\]/g;
   let m;
   while((m = re.exec(lyrics)) !== null){
-    const chord = m[1];
-    // Get root note (strip slash bass)
-    const base = chord.split('/')[0];
-    const rm = base.match(/^([A-G][#b]?)/);
-    if(rm) roots.push(rm[1]);
+    const chord = m[1].split('/')[0]; // strip slash bass
+    const rm = chord.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|[0-9])*/);
+    if(rm) chords.push({root: rm[1], isMinor: /m(?!a)/i.test(chord.slice(rm[1].length))});
   }
-  if(roots.length < 2) return null; // not enough data
+  if(chords.length < 2) return null;
 
   const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
+  const roots = chords.map(c=>c.root);
 
-  // Score each key by how many chord roots are diatonic to it
-  let bestKey = null, bestScore = -1;
+  // Score each key by diatonic match
+  const scores = {};
   for(const [key, diatonic] of Object.entries(DIATONIC_MAP)){
-    const score = roots.filter(r => {
-      const idx = gi(r);
-      return idx !== -1 && diatonic.includes(idx);
-    }).length;
-    if(score > bestScore){
-      bestScore = score;
-      bestKey = key;
-    }
+    scores[key] = roots.filter(r=>{ const idx=gi(r); return idx!==-1&&diatonic.includes(idx); }).length;
   }
-  // Only trust detection if >50% of chords match
-  return (bestScore / roots.length) >= 0.5 ? bestKey : null;
+  const maxScore = Math.max(...Object.values(scores));
+  if(maxScore / roots.length < 0.5) return null;
+
+  // Get all keys tied at the max score
+  const candidates = Object.keys(scores).filter(k=>scores[k]===maxScore);
+  if(candidates.length === 1) return candidates[0];
+
+  // Tiebreaker 1: first chord of song — the tonic is almost always first
+  const firstRoot = roots[0];
+  const firstMatch = candidates.find(k => {
+    const km = k.replace('m','');
+    return normaliseNote(km) === normaliseNote(firstRoot);
+  });
+  if(firstMatch) return firstMatch;
+
+  // Tiebreaker 2: most frequent chord root
+  const freq = {};
+  roots.forEach(r=>{ const n=normaliseNote(r); freq[n]=(freq[n]||0)+1; });
+  const mostFreqRoot = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0][0];
+  const freqMatch = candidates.find(k => normaliseNote(k.replace('m','')) === mostFreqRoot);
+  if(freqMatch) return freqMatch;
+
+  // Tiebreaker 3: prefer major over relative minor
+  const majorMatch = candidates.find(k => !k.endsWith('m'));
+  return majorMatch || candidates[0];
 }
 
 function renderSongView(){
@@ -1401,6 +1416,17 @@ function openSong(id, context){
   currentSong=songs.find(s=>s.id===id);if(!currentSong)return;
   setlistContext=context||null;
   currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;showChords=true;
+
+  // Detect actual key from chords and sync song.key if out of sync
+  const detectedKey = detectSongKey(currentSong.lyrics);
+  if(detectedKey && detectedKey !== currentSong.key && currentTranspose === 0){
+    // Only auto-correct if no manual transpose is active
+    currentSong.key = detectedKey;
+    const idx = songs.findIndex(s=>s.id===currentSong.id);
+    if(idx!==-1) songs[idx].key = detectedKey;
+    save();
+  }
+
   scrollSpeed = currentSong.scrollSpeed ?? defaultScrollSpeed;
   fontSize = currentSong.fontSize ?? parseInt(localStorage.getItem('cb_fontsize')||'15');
   // Load per-song two-col, fall back to global preference
