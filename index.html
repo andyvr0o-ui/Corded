@@ -1007,6 +1007,21 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 <div id="chord-tooltip"><div class="ct-name" id="tt-chord"></div><div class="ct-notes" id="tt-notes"></div></div>
 <div id="toast"></div>
+<!-- File permission pre-dialog -->
+<div id="file-perm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px 16px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6);margin:0 16px">
+    <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px">Backup Folder Access</div>
+    <div style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:16px">Chrome will ask permission to read and write files in your chosen backup folder. This is used only to save and restore your song library.</div>
+    <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);margin-bottom:20px;cursor:pointer">
+      <input type="checkbox" id="file-perm-remember" style="width:16px;height:16px;accent-color:var(--chord);cursor:pointer">
+      Don't show this again
+    </label>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button id="file-perm-cancel" style="padding:10px 20px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+      <button id="file-perm-ok" style="padding:10px 20px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Continue</button>
+    </div>
+  </div>
+</div>
 <!-- Rename dialog -->
 <div id="rename-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px 16px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6);margin:0 16px">
@@ -1114,6 +1129,31 @@ function save(){
   document.dispatchEvent(new Event('corded-saved'));
 }
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}
+
+// Show styled pre-permission dialog before triggering native browser permission
+// Returns a promise — resolves true if user taps Continue, false if Cancel
+function showFilePermDialog(){
+  return new Promise(resolve => {
+    // If user previously said don't show again — skip
+    if(localStorage.getItem('cb_file_perm_skip') === '1'){
+      resolve(true); return;
+    }
+    const overlay  = document.getElementById('file-perm-overlay');
+    const okBtn    = document.getElementById('file-perm-ok');
+    const cancelBtn= document.getElementById('file-perm-cancel');
+    const checkbox = document.getElementById('file-perm-remember');
+    checkbox.checked = false;
+    overlay.style.display = 'flex';
+    const cleanup = (result) => {
+      overlay.style.display = 'none';
+      okBtn.onclick = null; cancelBtn.onclick = null;
+      if(checkbox.checked) localStorage.setItem('cb_file_perm_skip', '1');
+      resolve(result);
+    };
+    okBtn.onclick    = () => cleanup(true);
+    cancelBtn.onclick= () => cleanup(false);
+  });
+}
 
 function appConfirm(msg, onOk, {title='', okLabel='OK', okDanger=false}={}){
   const overlay = document.getElementById('app-confirm-overlay');
@@ -4156,6 +4196,9 @@ async function chooseBackupFolder(){
     toast('Your browser does not support folder selection. Try Chrome.');
     return;
   }
+  // Show styled dialog before native browser permission prompt
+  const proceed = await showFilePermDialog();
+  if(!proceed) return;
   try {
     const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'corded-backup' });
     backupDirHandle = handle;
@@ -4212,6 +4255,8 @@ function showReconnectBanner(handle){
   nav.insertAdjacentElement('afterend', banner);
   banner.addEventListener('click', async ()=>{
     try {
+      const proceed = await showFilePermDialog();
+      if(!proceed) return;
       const perm = await handle.requestPermission({ mode: 'readwrite' });
       if(perm === 'granted'){
         banner.remove();
