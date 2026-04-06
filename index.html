@@ -781,17 +781,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     </div>
   </div>
 
-  <!-- Auto Backup -->
-  <div class="drawer-section">
-    <h3>Local Backup</h3>
-    <div id="backup-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">No backup folder set</div>
-    <div style="display:flex;flex-direction:column;gap:7px">
-      <button class="drawer-btn" id="backup-choose-btn">📁 Choose backup folder</button>
-      <button class="drawer-btn" id="backup-now-btn" style="display:none">↑ Backup now</button>
-      <button class="drawer-btn" id="backup-restore-btn" style="display:none">↓ Restore from backup</button>
-      <button class="drawer-btn" id="backup-forget-btn" style="display:none;color:var(--text3)">Forget folder</button>
-    </div>
-  </div>
+
   <!-- Google Drive Backup -->
   <div class="drawer-section">
     <h3>Google Drive Sync</h3>
@@ -807,9 +797,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
   </div>
   <!-- Data -->
   <div class="drawer-section">
-    <h3>Data</h3>
+    <h3>Backup &amp; Restore</h3>
     <div style="display:flex;flex-direction:column;gap:7px">
-      <button class="drawer-btn" id="export-btn">↓ Export Library</button>
+      <button class="drawer-btn" id="export-btn">↓ Save Library to File</button>
+      <button class="drawer-btn" id="import-library-btn">↑ Load Library from File</button>
       <button class="drawer-btn" id="clear-btn" style="color:var(--danger);border-color:rgba(230,57,70,.3)">🗑 Clear Library</button>
     </div>
   </div>
@@ -1007,21 +998,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 <div id="chord-tooltip"><div class="ct-name" id="tt-chord"></div><div class="ct-notes" id="tt-notes"></div></div>
 <div id="toast"></div>
-<!-- File permission pre-dialog -->
-<div id="file-perm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px 16px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6);margin:0 16px">
-    <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px">Backup Folder Access</div>
-    <div style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:16px">Chrome will ask permission to read and write files in your chosen backup folder. This is used only to save and restore your song library.</div>
-    <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);margin-bottom:20px;cursor:pointer">
-      <input type="checkbox" id="file-perm-remember" style="width:16px;height:16px;accent-color:var(--chord);cursor:pointer">
-      Don't show this again
-    </label>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button id="file-perm-cancel" style="padding:10px 20px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
-      <button id="file-perm-ok" style="padding:10px 20px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Continue</button>
-    </div>
-  </div>
-</div>
+
 <!-- Rename dialog -->
 <div id="rename-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px 16px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6);margin:0 16px">
@@ -1129,31 +1106,6 @@ function save(){
   document.dispatchEvent(new Event('corded-saved'));
 }
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}
-
-// Show styled pre-permission dialog before triggering native browser permission
-// Returns a promise — resolves true if user taps Continue, false if Cancel
-function showFilePermDialog(){
-  return new Promise(resolve => {
-    // If user previously said don't show again — skip
-    if(localStorage.getItem('cb_file_perm_skip') === '1'){
-      resolve(true); return;
-    }
-    const overlay  = document.getElementById('file-perm-overlay');
-    const okBtn    = document.getElementById('file-perm-ok');
-    const cancelBtn= document.getElementById('file-perm-cancel');
-    const checkbox = document.getElementById('file-perm-remember');
-    checkbox.checked = false;
-    overlay.style.display = 'flex';
-    const cleanup = (result) => {
-      overlay.style.display = 'none';
-      okBtn.onclick = null; cancelBtn.onclick = null;
-      if(checkbox.checked) localStorage.setItem('cb_file_perm_skip', '1');
-      resolve(result);
-    };
-    okBtn.onclick    = () => cleanup(true);
-    cancelBtn.onclick= () => cleanup(false);
-  });
-}
 
 function appConfirm(msg, onOk, {title='', okLabel='OK', okDanger=false}={}){
   const overlay = document.getElementById('app-confirm-overlay');
@@ -2237,8 +2189,51 @@ document.getElementById('speed-val').textContent=scrollSpeed;
 document.getElementById('toggle-dim').addEventListener('click',function(){this.classList.toggle('on');document.body.style.filter=this.classList.contains('on')?'brightness(0.35)':'';});
 document.getElementById('toggle-notation').addEventListener('click',function(){useFlats=!useFlats;localStorage.setItem('cb_notation_manual','1');this.textContent=useFlats?'♭ Flat':'♯ Sharp';if(currentSong)renderSongView();});
 document.getElementById('export-btn').addEventListener('click',()=>{
-  const b=new Blob([JSON.stringify({songs,setlists},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='corded.json';a.click();toast('Exported!');
+  const data = { songs, setlists, version: Date.now(), exported: new Date().toISOString() };
+  const b = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'corded-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  toast('Library saved!');
+  closeDrawer();
+});
+
+document.getElementById('import-library-btn').addEventListener('click',()=>{
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json';
+  inp.onchange = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if(!data.songs || !Array.isArray(data.songs)){
+          toast('Invalid backup file'); return;
+        }
+        appConfirm(
+          'Load ' + data.songs.length + ' songs from this backup? Your current library will be replaced.',
+          () => {
+            songs = data.songs;
+            setlists = data.setlists && data.setlists.length ? data.setlists : [{id:'1',name:'Sunday Morning',songs:[]}];
+            activeSetlistIdx = 0;
+            save();
+            renderLibrary();
+            renderSetlist();
+            toast('Loaded ' + songs.length + ' songs!');
+            closeDrawer();
+          },
+          { title: 'Load Backup', okLabel: 'Load', okDanger: false }
+        );
+      } catch(err){
+        toast('Could not read file: ' + err.message);
+      }
+    };
+    r.readAsText(file);
+  };
+  inp.click();
 });
 document.getElementById('clear-btn').addEventListener('click',()=>{
   appConfirm('Clear all songs?', ()=>{
@@ -4077,221 +4072,11 @@ if(!window.matchMedia('(display-mode: standalone)').matches && !localStorage.get
 </script>
 <script>
 // ===== AUTO BACKUP (File System Access API) =====
-const BACKUP_FILENAME = 'corded-backup.json';
-const DB_NAME = 'corded-fs';
-const DB_STORE = 'handles';
-
-let backupDirHandle = null;
+// Local folder backup removed — use Save/Load Library buttons or Google Drive
 
 // Store/retrieve directory handle in IndexedDB (persists across sessions)
-function openDB(){
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE);
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = e => reject(e);
-  });
-}
-
-async function saveDirHandle(handle){
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    tx.objectStore(DB_STORE).put(handle, 'backupDir');
-    tx.oncomplete = resolve;
-    tx.onerror = reject;
-  });
-}
-
-async function loadDirHandle(){
-  try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(DB_STORE, 'readonly');
-      const req = tx.objectStore(DB_STORE).get('backupDir');
-      req.onsuccess = e => resolve(e.target.result || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch(e){ return null; }
-}
-
-async function deleteDirHandle(){
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    tx.objectStore(DB_STORE).delete('backupDir');
-    tx.oncomplete = resolve;
-    tx.onerror = resolve;
-  });
-}
-
-function updateBackupStatus(msg, hasFolder){
-  const el = document.getElementById('backup-status');
-  if(el) el.textContent = msg;
-  const nowBtn     = document.getElementById('backup-now-btn');
-  const restoreBtn = document.getElementById('backup-restore-btn');
-  const forgetBtn  = document.getElementById('backup-forget-btn');
-  const chooseBtn  = document.getElementById('backup-choose-btn');
-  if(nowBtn)     nowBtn.style.display     = hasFolder ? '' : 'none';
-  if(restoreBtn) restoreBtn.style.display = hasFolder ? '' : 'none';
-  if(forgetBtn)  forgetBtn.style.display  = hasFolder ? '' : 'none';
-  if(chooseBtn)  chooseBtn.textContent    = hasFolder ? '📁 Change folder' : '📁 Choose backup folder';
-}
-
-async function doBackup(){
-  if(!backupDirHandle) return;
-  try {
-    // Verify permission still granted
-    const perm = await backupDirHandle.queryPermission({ mode: 'readwrite' });
-    if(perm !== 'granted'){
-      const req = await backupDirHandle.requestPermission({ mode: 'readwrite' });
-      if(req !== 'granted'){ updateBackupStatus('Permission denied — tap Choose folder', false); return; }
-    }
-    const fileHandle = await backupDirHandle.getFileHandle(BACKUP_FILENAME, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify({ songs, setlists, version: Date.now() }));
-    await writable.close();
-    const now = new Date().toLocaleTimeString();
-    updateBackupStatus('✓ Backed up at ' + now, true);
-  } catch(e){
-    console.error('Backup failed:', e);
-    updateBackupStatus('Backup failed — ' + e.message, true);
-  }
-}
-
-async function doRestore(){
-  if(!backupDirHandle) return;
-  try {
-    const perm = await backupDirHandle.queryPermission({ mode: 'read' });
-    if(perm !== 'granted'){
-      const req = await backupDirHandle.requestPermission({ mode: 'read' });
-      if(req !== 'granted'){ updateBackupStatus('Permission denied', true); return; }
-    }
-    const fileHandle = await backupDirHandle.getFileHandle(BACKUP_FILENAME);
-    const file = await fileHandle.getFile();
-    const text = await file.text();
-    const data = JSON.parse(text);
-    if(data.songs && Array.isArray(data.songs)){
-      songs = data.songs;
-      if(data.setlists && Array.isArray(data.setlists)) setlists = data.setlists;
-      if(!setlists.length) setlists = [{id:'1',name:'Sunday Morning',songs:[]}];
-      activeSetlistIdx = 0;
-      save();
-      renderLibrary();
-      renderSetlist();
-      toast('Restored ' + songs.length + ' songs from backup');
-      updateBackupStatus('✓ Restored ' + songs.length + ' songs', true);
-    }
-  } catch(e){
-    if(e.name === 'NotFoundError'){
-      updateBackupStatus('No backup file found in this folder yet', true);
-    } else {
-      updateBackupStatus('Restore failed — ' + e.message, true);
-    }
-  }
-}
-
-async function chooseBackupFolder(){
-  if(!('showDirectoryPicker' in window)){
-    toast('Your browser does not support folder selection. Try Chrome.');
-    return;
-  }
-  // Show styled dialog before native browser permission prompt
-  const proceed = await showFilePermDialog();
-  if(!proceed) return;
-  try {
-    const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'corded-backup' });
-    backupDirHandle = handle;
-    await saveDirHandle(handle);
-    // Reset the "don't show again" flag for next time (new folder = new permission)
-    localStorage.removeItem('cb_file_perm_skip');
-    updateBackupStatus('✓ Folder: ' + handle.name, true);
-    // Check if backup file exists — if so, ask to restore
-    try {
-      await handle.getFileHandle(BACKUP_FILENAME);
-      // File exists — ask user
-      appConfirm('A backup file was found in this folder. Restore from it?', async ()=>{
-        await doRestore();
-      }, {title:'Backup Found', okLabel:'Restore'});
-      // Don't auto-backup on choose — let user manually backup or wait for app close
-    } catch(e){
-      if(e.name === 'NotFoundError'){
-        // No backup yet — that's fine, will backup on app close
-        updateBackupStatus('✓ Folder set: ' + handle.name + ' (will backup on close)', true);
-      }
-    }
-  } catch(e){
-    if(e.name !== 'AbortError'){
-      toast('Could not access folder: ' + e.message);
-    }
-  }
-}
-
-async function initBackup(){
-  const handle = await loadDirHandle();
-  if(!handle){ updateBackupStatus('No backup folder set', false); return; }
-  backupDirHandle = handle;
-  try {
-    const perm = await handle.queryPermission({ mode: 'readwrite' });
-    if(perm === 'granted'){
-      updateBackupStatus('✓ Folder: ' + handle.name, true);
-      await doRestore();
-      // Don't backup on startup — only backup on app close to avoid overwriting with stale data
-    } else {
-      // Permission not granted — show a banner tap-to-reconnect
-      updateBackupStatus('Tap to reconnect backup folder', true);
-      showReconnectBanner(handle);
-    }
-  } catch(e){
-    updateBackupStatus('Folder not accessible', false);
-  }
-}
-
-function showReconnectBanner(handle){
-  // No banner — silently reconnect on first user interaction
-  const reconnect = async () => {
-    document.removeEventListener('pointerdown', reconnect);
-    document.removeEventListener('keydown', reconnect);
-    try {
-      const perm = await handle.requestPermission({ mode: 'readwrite' });
-      if(perm === 'granted'){
-        backupDirHandle = handle;
-        updateBackupStatus('✓ Folder: ' + handle.name, true);
-        await doBackup();
-      } else {
-        updateBackupStatus('Backup folder disconnected — choose new folder', false);
-      }
-    } catch(e){
-      updateBackupStatus('Backup folder disconnected — choose new folder', false);
-    }
-  };
-  // Attach to first user interaction
-  document.addEventListener('pointerdown', reconnect, { once: true });
-  document.addEventListener('keydown', reconnect, { once: true });
-}
-
-// Wire buttons
-document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('backup-choose-btn').addEventListener('click', chooseBackupFolder);
-  document.getElementById('backup-now-btn').addEventListener('click', ()=>{ doBackup(); });
-  document.getElementById('backup-restore-btn').addEventListener('click', ()=>{ doRestore(); });
-  document.getElementById('backup-forget-btn').addEventListener('click', async ()=>{
-    backupDirHandle = null;
-    await deleteDirHandle();
-    updateBackupStatus('No backup folder set', false);
-    toast('Backup folder forgotten');
-  });
-});
-
-// Auto backup when app goes to background
-document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'hidden' && backupDirHandle){
-    doBackup();
-  }
-});
-
-// Init on load
-window.addEventListener('load', ()=>{ initBackup(); });
+// Folder-based backup replaced with simple JSON export/import
+// See export-btn and import-library-btn handlers above
 </script>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
