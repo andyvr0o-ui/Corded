@@ -1110,6 +1110,8 @@ function save(){
   localStorage.setItem('cb_fontsize',fontSize);
   localStorage.setItem('cb_speed',defaultScrollSpeed);
   localStorage.setItem('cb_recent_chords',JSON.stringify(recentChords));
+  // Notify Drive sync
+  document.dispatchEvent(new Event('corded-saved'));
 }
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}
 
@@ -4428,16 +4430,13 @@ async function gdriveSyncNow(){
   gdriveSyncing = false;
 }
 
-// ── Auto sync on save ──
-const _origSave = save;
-function save(){
-  _origSave();
-  // Debounce Drive sync — don't hammer on rapid saves
+// ── Auto sync on save — hooked via event rather than override ──
+document.addEventListener('corded-saved', ()=>{
   clearTimeout(window._gdriveSyncTimer);
   window._gdriveSyncTimer = setTimeout(()=>{
     if(gdriveToken) gdriveSyncNow();
   }, 2000);
-}
+});
 
 // ── Init on load ──
 function initGdrive(){
