@@ -4203,6 +4203,8 @@ async function chooseBackupFolder(){
     const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'corded-backup' });
     backupDirHandle = handle;
     await saveDirHandle(handle);
+    // Reset the "don't show again" flag for next time (new folder = new permission)
+    localStorage.removeItem('cb_file_perm_skip');
     updateBackupStatus('✓ Folder: ' + handle.name, true);
     // Check if backup file exists — if so, ask to restore
     try {
@@ -4246,30 +4248,26 @@ async function initBackup(){
 }
 
 function showReconnectBanner(handle){
-  const nav = document.getElementById('top-nav');
-  if(!nav || document.getElementById('reconnect-banner')) return;
-  const banner = document.createElement('div');
-  banner.id = 'reconnect-banner';
-  banner.style.cssText = 'background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;flex-shrink:0';
-  banner.innerHTML = '<span style="flex:1;color:var(--text2)">🔒 Tap to reconnect backup folder <b style="color:var(--accent)">' + (handle.name||'') + '</b></span><span style="color:var(--text3);font-size:18px">→</span>';
-  nav.insertAdjacentElement('afterend', banner);
-  banner.addEventListener('click', async ()=>{
+  // No banner — silently reconnect on first user interaction
+  const reconnect = async () => {
+    document.removeEventListener('pointerdown', reconnect);
+    document.removeEventListener('keydown', reconnect);
     try {
-      const proceed = await showFilePermDialog();
-      if(!proceed) return;
       const perm = await handle.requestPermission({ mode: 'readwrite' });
       if(perm === 'granted'){
-        banner.remove();
+        backupDirHandle = handle;
         updateBackupStatus('✓ Folder: ' + handle.name, true);
-        await doRestore();
+        await doBackup();
       } else {
-        banner.innerHTML = '<span style="flex:1;color:var(--danger)">Permission denied — choose a new folder in the menu</span><span id="reconnect-dismiss" style="color:var(--text3);padding:4px 8px;cursor:pointer">✕</span>';
-        document.getElementById('reconnect-dismiss').addEventListener('click', ()=>banner.remove());
+        updateBackupStatus('Backup folder disconnected — choose new folder', false);
       }
     } catch(e){
-      banner.remove();
+      updateBackupStatus('Backup folder disconnected — choose new folder', false);
     }
-  });
+  };
+  // Attach to first user interaction
+  document.addEventListener('pointerdown', reconnect, { once: true });
+  document.addEventListener('keydown', reconnect, { once: true });
 }
 
 // Wire buttons
