@@ -2600,8 +2600,7 @@ function openModal(editId){
   if(mkLabel) mkLabel.textContent = selectedKey;
   const panelLabel = document.getElementById('keys-panel-label');
   if(panelLabel) panelLabel.textContent = selectedKey.replace('m','') + (selectedKey.endsWith('m') ? 'm' : '');
-  const tLabel2 = document.getElementById('key-dropdown-label');
-  if(tLabel2) tLabel2.textContent = selectedKey.replace('m','');
+  // key-dropdown-label removed — panel label updated via buildKeyDropdown
   closeAllKeyDropdowns();
   cbReset();
   renderChordBar();
@@ -2964,9 +2963,7 @@ function makeKeySelector(container, getKey, setKey, accentColor, showMinor){
 
 function buildKeyDropdown(){
   const grid = document.getElementById('key-dropdown-grid');
-  const label = document.getElementById('key-dropdown-label');
-  if(!grid||!label) return;
-  label.textContent = selectedKey.replace('m','');
+  if(!grid) return;
   // Transpose selector — no m button, panel stays open after selection
   makeKeySelector(grid,
     () => selectedKey.replace('m',''),
@@ -2987,7 +2984,9 @@ function buildKeyDropdown(){
         editorSnapshot();
       }
       selectedKey = newKey + (selectedKey.endsWith('m') ? 'm' : '');
-      label.textContent = newKey;
+      // Update panel label
+      const pLabel = document.getElementById('keys-panel-label');
+      if(pLabel) pLabel.textContent = selectedKey.replace('m','') + (selectedKey.endsWith('m') ? 'm' : '');
       if(editingId){
         const idx=songs.findIndex(s=>s.id===editingId);
         if(idx!==-1){ songs[idx].key=selectedKey; if(currentSong&&currentSong.id===editingId) currentSong.key=selectedKey; }
@@ -2995,7 +2994,6 @@ function buildKeyDropdown(){
       }
       buildKeyDropdown(); // re-render to update highlight
       renderChordHistory();
-      // Panel stays open — no close
     },
     'var(--chord)',
     false // no m button
@@ -3019,8 +3017,7 @@ function buildMasterKeyDropdown(){
       selectedKey = newKey;
       label.textContent = newKey;
       // Also update transpose and panel labels
-      const tLabel = document.getElementById('key-dropdown-label');
-      if(tLabel) tLabel.textContent = newKey.replace('m','');
+      // key-dropdown-label removed — panel label updated separately
       const pLabel = document.getElementById('keys-panel-label');
       if(pLabel) pLabel.textContent = newKey.replace('m','') + (newKey.endsWith('m') ? 'm' : '');
       // Update song key without transposing notes
@@ -3627,10 +3624,8 @@ function openQS(){
     }
   });
 
-  // Stop all clicks inside QS transpose area from bubbling
+  // Stop clicks inside QS transpose grid from bubbling
   tGrid.addEventListener('click', e => e.stopPropagation());
-  document.getElementById('transpose-up').addEventListener('click', e => e.stopPropagation(), true);
-  document.getElementById('transpose-down').addEventListener('click', e => e.stopPropagation(), true);
 
   // Capo
   document.getElementById('qs-capo-val').textContent = capo;
