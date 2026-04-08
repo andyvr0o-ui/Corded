@@ -818,44 +818,42 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
       <button class="icon-btn" id="modal-cancel" title="Save &amp; close">←</button>
       <span id="modal-title" style="flex:1;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent)">Add Song</span>
-      <!-- Combined Keys panel -->
-      <div style="position:relative" id="keys-panel-wrap">
+      <!-- Combined Keys panel button -->
+      <div id="keys-panel-wrap">
         <button id="keys-panel-btn" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
           ♪ <span id="keys-panel-label">G</span> <span style="font-size:9px;opacity:.6">▾</span>
         </button>
-        <div id="keys-panel-list" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:12px;z-index:500;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:240px">
-          <!-- Master Key row -->
-          <div style="margin-bottom:10px">
-            <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Master Key</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <button id="master-key-dropdown-btn" style="padding:5px 12px;border-radius:8px;background:transparent;border:2px solid #c0392b;color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center">
-                <span id="master-key-dropdown-label">G</span>
-              </button>
-            </div>
-            <div id="master-key-dropdown-list" style="display:none;margin-top:6px">
-              <div id="master-key-dropdown-grid"></div>
-            </div>
-          </div>
-          <!-- Divider -->
-          <div style="height:1px;background:var(--border);margin-bottom:10px"></div>
-          <!-- Transpose row -->
-          <div>
-            <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Transpose To</div>
-            <div style="display:flex;align-items:center;gap:8px" id="key-dropdown-wrap">
-              <button id="key-dropdown-btn" style="padding:5px 12px;border-radius:8px;background:transparent;border:2px solid var(--chord);color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center">
-                <span id="key-dropdown-label">G</span>
-              </button>
-            </div>
-            <div id="key-dropdown-list" style="display:none;margin-top:6px">
-              <div style="display:flex;flex-wrap:wrap;gap:4px" id="key-dropdown-grid"></div>
-            </div>
-          </div>
-        </div>
       </div>
       <button class="icon-btn" id="modal-undo" title="Undo" style="font-size:16px;opacity:.5" disabled>↩</button>
       <button class="icon-btn" id="modal-redo" title="Redo" style="font-size:16px;opacity:.5" disabled>↪</button>
       <button class="icon-btn" id="modal-discard" title="Discard changes" style="color:var(--danger);display:none">✕</button>
       <button class="btn-primary" id="modal-save" style="padding:8px 16px;font-size:13px">Save</button>
+    </div>
+
+    <!-- Keys panel — expands below top bar when open -->
+    <div id="keys-panel-list" style="display:none;background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 14px;flex-shrink:0">
+      <!-- Master Key row -->
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Master Key</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="master-key-dropdown-btn" style="padding:5px 12px;border-radius:8px;background:transparent;border:2px solid #c0392b;color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center"><span id="master-key-dropdown-label">G</span></button>
+        </div>
+        <div id="master-key-dropdown-list" style="display:none;margin-top:6px">
+          <div id="master-key-dropdown-grid"></div>
+        </div>
+      </div>
+      <!-- Divider -->
+      <div style="height:1px;background:var(--border);margin-bottom:8px"></div>
+      <!-- Transpose row -->
+      <div>
+        <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Transpose To</div>
+        <div style="display:flex;align-items:center;gap:8px" id="key-dropdown-wrap">
+          <button id="key-dropdown-btn" style="padding:5px 12px;border-radius:8px;background:transparent;border:2px solid var(--chord);color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center"><span id="key-dropdown-label">G</span></button>
+        </div>
+        <div id="key-dropdown-list" style="display:none;margin-top:6px">
+          <div style="display:flex;flex-wrap:wrap;gap:4px" id="key-dropdown-grid"></div>
+        </div>
+      </div>
     </div>
 
     <!-- CHORD BAR — always visible -->
