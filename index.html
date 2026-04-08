@@ -3026,7 +3026,7 @@ function buildMasterKeyDropdown(){
         if(idx!==-1){
           songs[idx].key = newKey;
           songs[idx].transpose = 0;
-          if(currentSong&&currentSong.id===editingId){ currentSong.key=newKey; currentSong.transpose=0; }
+          if(currentSong&&currentSong.id===editingId){ currentSong.key=newKey; currentSong.transpose=0; currentTranspose=0; }
         }
         save();
       }
