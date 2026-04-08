@@ -3577,12 +3577,14 @@ function openQS(){
   }
 
   function updateTransposeBtn(){
-    tBtn.textContent = getTransposeKey().replace('m','') + (currentSong.key.endsWith('m') ? 'm' : '');
+    const liveBtn = document.getElementById('qs-transpose-key-btn');
+    if(!liveBtn) return;
+    liveBtn.textContent = getTransposeKey().replace('m','') + (currentSong.key.endsWith('m') ? 'm' : '');
     // Filled when open, outline when closed
     const isOpen = tGrid.style.display !== 'none';
-    tBtn.style.background = isOpen ? 'var(--chord)' : 'transparent';
-    tBtn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
-    tBtn.style.border = '2px solid var(--chord)';
+    liveBtn.style.background = isOpen ? 'var(--chord)' : 'transparent';
+    liveBtn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
+    liveBtn.style.border = '2px solid var(--chord)';
   }
 
   function setTransposeKey(newKey){
@@ -3604,13 +3606,16 @@ function openQS(){
 
   newTBtn.addEventListener('click', e => {
     e.stopPropagation();
+    const btn    = document.getElementById('qs-transpose-key-btn');
     const isOpen = tGrid.style.display !== 'none';
     const upBtn   = document.getElementById('transpose-up');
     const downBtn = document.getElementById('transpose-down');
     tGrid.style.display = isOpen ? 'none' : 'block';
-    newTBtn.style.background = isOpen ? 'transparent' : 'var(--chord)';
-    newTBtn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
-    newTBtn.style.border = '2px solid var(--chord)';
+    if(btn){
+      btn.style.background = isOpen ? 'transparent' : 'var(--chord)';
+      btn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
+      btn.style.border = '2px solid var(--chord)';
+    }
     // Show semitone buttons only when grid is open
     if(upBtn)   upBtn.style.display   = isOpen ? 'none' : '';
     if(downBtn) downBtn.style.display = isOpen ? 'none' : '';
