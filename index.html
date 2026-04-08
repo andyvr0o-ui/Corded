@@ -844,15 +844,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       </div>
       <!-- Divider -->
       <div style="height:1px;background:var(--border);margin-bottom:8px"></div>
-      <!-- Transpose row -->
-      <div>
+      <!-- Transpose row — always visible grid -->
+      <div id="key-dropdown-wrap">
         <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Transpose To</div>
-        <div style="display:flex;align-items:center;gap:8px" id="key-dropdown-wrap">
-          <button id="key-dropdown-btn" style="padding:5px 12px;border-radius:8px;background:transparent;border:2px solid var(--chord);color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center"><span id="key-dropdown-label">G</span></button>
-        </div>
-        <div id="key-dropdown-list" style="display:none;margin-top:6px">
-          <div style="display:flex;flex-wrap:wrap;gap:4px" id="key-dropdown-grid"></div>
-        </div>
+        <div id="key-dropdown-grid" style="display:flex;flex-wrap:wrap;gap:5px"></div>
       </div>
     </div>
 
@@ -2971,13 +2966,11 @@ function buildKeyDropdown(){
   const grid = document.getElementById('key-dropdown-grid');
   const label = document.getElementById('key-dropdown-label');
   if(!grid||!label) return;
-  label.textContent = selectedKey;
-  // Use makeKeySelector for the editor key picker
-  // Transpose selector — no m button (minor inherited from master key)
+  label.textContent = selectedKey.replace('m','');
+  // Transpose selector — no m button, panel stays open after selection
   makeKeySelector(grid,
     () => selectedKey.replace('m',''),
     (newKey) => {
-      if(newKey === selectedKey.replace('m','')){ closeKeyDropdown(); return; }
       const gi = k=>{ const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
       const steps = ((gi(newKey)-gi(selectedKey))%12+12)%12;
       if(steps !== 0){
@@ -2993,31 +2986,24 @@ function buildKeyDropdown(){
         }
         editorSnapshot();
       }
-      selectedKey = newKey;
+      selectedKey = newKey + (selectedKey.endsWith('m') ? 'm' : '');
       label.textContent = newKey;
       if(editingId){
         const idx=songs.findIndex(s=>s.id===editingId);
-        if(idx!==-1){ songs[idx].key=newKey; if(currentSong&&currentSong.id===editingId) currentSong.key=newKey; }
+        if(idx!==-1){ songs[idx].key=selectedKey; if(currentSong&&currentSong.id===editingId) currentSong.key=selectedKey; }
         save();
       }
-      buildKeyDropdown();
+      buildKeyDropdown(); // re-render to update highlight
       renderChordHistory();
-    }
+      // Panel stays open — no close
+    },
+    'var(--chord)',
+    false // no m button
   );
-  setTimeout(()=>{
-    const close = e=>{
-      const wrap = document.getElementById('key-dropdown-wrap');
-      if(wrap && !wrap.contains(e.target)) closeKeyDropdown();
-      document.removeEventListener('click', close);
-    };
-    document.addEventListener('click', close);
-  }, 10);
 }
 function closeKeyDropdown(){
-  const list = document.getElementById('key-dropdown-list');
-  const tBtn = document.getElementById('key-dropdown-btn');
-  if(list) list.style.display='none';
-  if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; tBtn.style.border='2px solid var(--chord)'; }
+  // Transpose grid is always visible in panel — just close the panel
+  closeAllKeyDropdowns();
 }
 
 function buildMasterKeyDropdown(){
@@ -3047,8 +3033,10 @@ function buildMasterKeyDropdown(){
         }
         save();
       }
-      closeMasterKeyDropdown();
+      // Update transpose grid to reflect new master key
+      buildKeyDropdown();
       renderChordHistory();
+      // Panel stays open — no close
     },
     '#c0392b',
     true // show m button for master key
@@ -3056,14 +3044,6 @@ function buildMasterKeyDropdown(){
   // Style btn as filled when open
   btn.style.background = '#c0392b';
   btn.style.color = '#fff';
-  setTimeout(()=>{
-    const close = e=>{
-      const wrap = document.getElementById('master-key-dropdown-wrap');
-      if(wrap && !wrap.contains(e.target)) closeMasterKeyDropdown();
-      document.removeEventListener('click', close);
-    };
-    document.addEventListener('click', close);
-  }, 10);
 }
 
 function closeMasterKeyDropdown(){
@@ -3084,11 +3064,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     panel.style.display = isOpen ? 'none' : 'block';
     panelBtn.style.background = isOpen ? 'var(--surface3)' : 'var(--surface2)';
     if(!isOpen){
-      // Close any open sub-dropdowns when panel opens
-      const mkList = document.getElementById('master-key-dropdown-list');
-      const tList  = document.getElementById('key-dropdown-list');
-      if(mkList) mkList.style.display = 'none';
-      if(tList)  tList.style.display  = 'none';
+      // Render transpose grid immediately when panel opens
+      buildKeyDropdown();
+      // Close master key grid if open
       closeMasterKeyDropdown();
     }
     if(isOpen) closeAllKeyDropdowns();
@@ -3099,34 +3077,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(mBtn) mBtn.addEventListener('click', e=>{
     e.stopPropagation();
     const list = document.getElementById('master-key-dropdown-list');
-    const tList = document.getElementById('key-dropdown-list');
     if(!list) return;
     const isOpen = list.style.display !== 'none';
-    // Close transpose if open
-    if(tList) tList.style.display = 'none';
-    const tBtn = document.getElementById('key-dropdown-btn');
-    if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; tBtn.style.border='2px solid var(--chord)'; }
     list.style.display = isOpen ? 'none' : 'block';
     if(!isOpen) buildMasterKeyDropdown();
     else closeMasterKeyDropdown();
-  });
-
-  // ── Transpose button inside panel ──
-  const tBtn = document.getElementById('key-dropdown-btn');
-  if(tBtn) tBtn.addEventListener('click', e=>{
-    e.stopPropagation();
-    const list = document.getElementById('key-dropdown-list');
-    const mkList = document.getElementById('master-key-dropdown-list');
-    if(!list) return;
-    const isOpen = list.style.display !== 'none';
-    // Close master key if open
-    if(mkList) mkList.style.display = 'none';
-    closeMasterKeyDropdown();
-    list.style.display = isOpen ? 'none' : 'block';
-    tBtn.style.background = isOpen ? 'transparent' : 'var(--chord)';
-    tBtn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
-    tBtn.style.border = '2px solid var(--chord)';
-    if(!isOpen) buildKeyDropdown();
   });
 
   // ── Close panel on tap outside ──
@@ -3137,16 +3092,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 function closeAllKeyDropdowns(){
-  const panel = document.getElementById('keys-panel-list');
-  const mkList = document.getElementById('master-key-dropdown-list');
-  const tList  = document.getElementById('key-dropdown-list');
+  const panel    = document.getElementById('keys-panel-list');
+  const mkList   = document.getElementById('master-key-dropdown-list');
   const panelBtn = document.getElementById('keys-panel-btn');
-  const tBtn   = document.getElementById('key-dropdown-btn');
-  if(panel)    panel.style.display   = 'none';
-  if(mkList)   mkList.style.display  = 'none';
-  if(tList)    tList.style.display   = 'none';
+  if(panel)    panel.style.display = 'none';
+  if(mkList)   mkList.style.display = 'none';
   if(panelBtn) panelBtn.style.background = 'var(--surface3)';
-  if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; tBtn.style.border='2px solid var(--chord)'; }
   closeMasterKeyDropdown();
 }
 
