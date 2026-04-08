@@ -3067,6 +3067,9 @@ document.addEventListener('DOMContentLoaded',()=>{
       // Always re-render transpose grid when panel opens to ensure fresh state
       buildKeyDropdown();
       closeMasterKeyDropdown();
+      // Make sure the grid is visible (it's inside the now-visible panel)
+      const tGrid2 = document.getElementById('key-dropdown-grid');
+      if(tGrid2) tGrid2.style.display = '';
     }
     if(isOpen) closeAllKeyDropdowns();
   });
@@ -3592,14 +3595,9 @@ function openQS(){
     const idx = songs.findIndex(s=>s.id===currentSong.id);
     if(idx!==-1) songs[idx].transpose = currentTranspose;
     save(); renderSongView(); refreshQSCapo();
-    // Re-render grid to show updated highlight — keep grid open
-    makeKeySelector(tGrid,
-      () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
-      setTransposeKey,
-      'var(--chord)',
-      false
-    );
     updateTransposeBtn();
+    // Re-render grid in place to update highlight — grid stays visible
+    refreshQSKeyGrid();
   }
 
   // Clone button to remove old listeners
@@ -3622,7 +3620,7 @@ function openQS(){
     if(!isOpen){
       makeKeySelector(tGrid,
         () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
-        setTransposeKey,
+        setQSTransposeKey,
         'var(--chord)',
         false // no m button — minor inherited from master key
       );
@@ -3665,29 +3663,31 @@ function refreshQSKeyGrid(){
   const tGrid = document.getElementById('qs-transpose-grid');
   const raw = transposeChord(currentSong.key, currentTranspose);
   const isMinor = currentSong.key.endsWith('m');
-  const label = normaliseNote(raw.replace('m','')) + (isMinor ? 'm' : '');
-  // Update button label
+  const keyLabel = normaliseNote(raw.replace('m','')) + (isMinor ? 'm' : '');
+  // Update button label only — don't touch grid visibility
   if(tBtn){
-    tBtn.textContent = label;
+    tBtn.textContent = keyLabel;
     tBtn.style.border = '2px solid var(--chord)';
   }
-  // If grid is open, re-render it to update the highlighted key
+  // Re-render grid if it's open to update highlighted key
   if(tGrid && tGrid.style.display !== 'none'){
     makeKeySelector(tGrid,
       () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
-      (newKey) => {
-        const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
-        currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
-        currentSong.transpose = currentTranspose;
-        const idx = songs.findIndex(s=>s.id===currentSong.id);
-        if(idx!==-1) songs[idx].transpose = currentTranspose;
-        save(); renderSongView(); refreshQSCapo(); refreshQSKeyGrid();
-      },
+      setQSTransposeKey,
       'var(--chord)',
       false
     );
-    if(tBtn){ tBtn.style.background='var(--chord)'; tBtn.style.color='#0d0f14'; }
   }
+}
+
+function setQSTransposeKey(newKey){
+  if(!currentSong) return;
+  const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
+  currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
+  currentSong.transpose = currentTranspose;
+  const idx = songs.findIndex(s=>s.id===currentSong.id);
+  if(idx!==-1) songs[idx].transpose = currentTranspose;
+  save(); renderSongView(); refreshQSCapo(); refreshQSKeyGrid();
 }
 
 function refreshQSCapo(){
