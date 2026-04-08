@@ -4277,31 +4277,66 @@ function updateGdriveStatus(msg, connected){
   if(disconnectBtn) disconnectBtn.style.display = connected ? ''     : 'none';
 }
 
-// ── Sign in — opens Chrome with Google OAuth URL, redirects back via corded://oauth ──
+// ── Sign in — calls Android native Google Sign-In via JavaScript bridge ──
 function gdriveSignIn(){
-  const params = new URLSearchParams({
-    client_id: GDRIVE_CLIENT_ID,
-    redirect_uri: 'corded://oauth',
-    response_type: 'token',
-    scope: GDRIVE_SCOPES,
-    include_granted_scopes: 'true',
-  });
-  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
-  // Open in Chrome — MainActivity catches the corded://oauth redirect and calls window.onCordedOAuthToken
-  window.open(authUrl, '_blank');
-  updateGdriveStatus('Waiting for Google sign-in...', false);
+  if(window.Android && window.Android.signInWithGoogle){
+    // Running in TWA — use native Android Google Sign-In
+    updateGdriveStatus('Opening Google sign-in...', false);
+    window.Android.signInWithGoogle();
+  } else {
+    // Running in browser — fall back to manual OAuth URL
+    const params = new URLSearchParams({
+      client_id: GDRIVE_CLIENT_ID,
+      redirect_uri: window.location.origin + window.location.pathname,
+      response_type: 'token',
+      scope: GDRIVE_SCOPES,
+      include_granted_scopes: 'true',
+    });
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  }
 }
 
-// ── Called by MainActivity when OAuth redirect returns with token ──
+// ── Called by MainActivity with server auth code ──
+// We exchange it for an access token using the token endpoint
+window.onCordedAuthCode = async function(authCode) {
+  updateGdriveStatus('Completing sign-in...', false);
+  try {
+    // Exchange auth code for access token
+    const resp = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: authCode,
+        client_id: GDRIVE_CLIENT_ID,
+        grant_type: 'authorization_code',
+        redirect_uri: 'https://andyvr0o-ui.github.io/Corded/'
+      })
+    });
+    const data = await resp.json();
+    if(data.access_token){
+      gdriveSaveToken(data.access_token);
+      updateGdriveStatus('✓ Connected — syncing...', true);
+      await gdriveSyncNow();
+    } else {
+      throw new Error(data.error || 'no token');
+    }
+  } catch(e) {
+    updateGdriveStatus('Sign-in failed: ' + e.message, false);
+    toast('Google sign-in failed: ' + e.message);
+  }
+};
+
+// ── Called by MainActivity if sign-in fails ──
+window.onCordedOAuthError = function(error) {
+  updateGdriveStatus('Sign-in failed: ' + error, false);
+  toast('Google sign-in failed: ' + error);
+};
+
+// ── Called by MainActivity with direct access token (legacy) ──
 window.onCordedOAuthToken = async function(token) {
   gdriveSaveToken(token);
   updateGdriveStatus('✓ Connected — syncing...', true);
   await gdriveSyncNow();
-};
-
-window.onCordedOAuthError = function(error) {
-  updateGdriveStatus('Sign-in failed: ' + error, false);
-  toast('Google sign-in failed: ' + error);
 };
 
 // ── Find or create file in appDataFolder ──
