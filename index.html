@@ -818,26 +818,37 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
       <button class="icon-btn" id="modal-cancel" title="Save &amp; close">←</button>
       <span id="modal-title" style="flex:1;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent)">Add Song</span>
-      <!-- Master Key + Transpose dropdowns in top bar -->
-      <div style="display:flex;gap:6px;align-items:center">
-        <!-- Master Key -->
-        <div style="position:relative" id="master-key-dropdown-wrap">
-          <button id="master-key-dropdown-btn" style="padding:5px 10px;border-radius:8px;background:transparent;border:2px solid #c0392b;color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-            <span id="master-key-dropdown-label">G</span>
-          </button>
-          <div id="master-key-dropdown-list" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:10px;z-index:500;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:220px">
-            <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Master Key</div>
-            <div id="master-key-dropdown-grid"></div>
+      <!-- Combined Keys panel -->
+      <div style="position:relative" id="keys-panel-wrap">
+        <button id="keys-panel-btn" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+          ♪ <span id="keys-panel-label">G</span> <span style="font-size:9px;opacity:.6">▾</span>
+        </button>
+        <div id="keys-panel-list" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:12px;z-index:500;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:240px">
+          <!-- Master Key row -->
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Master Key</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button id="master-key-dropdown-btn" style="padding:5px 12px;border-radius:8px;background:transparent;border:2px solid #c0392b;color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center">
+                <span id="master-key-dropdown-label">G</span>
+              </button>
+            </div>
+            <div id="master-key-dropdown-list" style="display:none;margin-top:6px">
+              <div id="master-key-dropdown-grid"></div>
+            </div>
           </div>
-        </div>
-        <!-- Transpose -->
-        <div style="position:relative" id="key-dropdown-wrap">
-          <button id="key-dropdown-btn" style="display:flex;align-items:center;gap:4px;padding:5px 9px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-            ↕ <span id="key-dropdown-label">G</span> <span style="font-size:9px;opacity:.6">▾</span>
-          </button>
-          <div id="key-dropdown-list" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:10px;z-index:500;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:220px">
-            <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Transpose To</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px" id="key-dropdown-grid"></div>
+          <!-- Divider -->
+          <div style="height:1px;background:var(--border);margin-bottom:10px"></div>
+          <!-- Transpose row -->
+          <div>
+            <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Transpose To</div>
+            <div style="display:flex;align-items:center;gap:8px" id="key-dropdown-wrap">
+              <button id="key-dropdown-btn" style="padding:5px 12px;border-radius:8px;background:transparent;border:2px solid var(--chord);color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center">
+                <span id="key-dropdown-label">G</span>
+              </button>
+            </div>
+            <div id="key-dropdown-list" style="display:none;margin-top:6px">
+              <div style="display:flex;flex-wrap:wrap;gap:4px" id="key-dropdown-grid"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -948,8 +959,8 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div style="margin-bottom:8px;position:relative">
       <div style="display:flex;gap:8px;align-items:center">
         <button id="qs-transpose-key-btn" style="padding:7px 14px;border-radius:8px;background:transparent;color:var(--chord);border:2px solid var(--chord);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center">C</button>
-        <button class="qs-step-btn" id="transpose-down" style="border-radius:10px;flex:1">♭ −1</button>
-        <button class="qs-step-btn" id="transpose-up" style="border-radius:10px;flex:1">♯ +1</button>
+        <button class="qs-step-btn" id="transpose-down" style="display:none;border-radius:10px;flex:1">♭ −1</button>
+        <button class="qs-step-btn" id="transpose-up" style="display:none;border-radius:10px;flex:1">♯ +1</button>
       </div>
       <div id="qs-transpose-grid" style="display:none;margin-top:8px"></div>
     </div>
@@ -2591,9 +2602,14 @@ function openModal(editId){
     selectedKey='G';selectedTag='worship';
   }
   buildKeyDropdown();
-  // Set master key label
+  // Set master key and panel labels
   const mkLabel = document.getElementById('master-key-dropdown-label');
   if(mkLabel) mkLabel.textContent = selectedKey;
+  const panelLabel = document.getElementById('keys-panel-label');
+  if(panelLabel) panelLabel.textContent = selectedKey.replace('m','') + (selectedKey.endsWith('m') ? 'm' : '');
+  const tLabel2 = document.getElementById('key-dropdown-label');
+  if(tLabel2) tLabel2.textContent = selectedKey.replace('m','');
+  closeAllKeyDropdowns();
   cbReset();
   renderChordBar();
   document.querySelectorAll('#tag-picker [data-tag]').forEach(btn=>{
@@ -3001,7 +3017,9 @@ function buildKeyDropdown(){
 }
 function closeKeyDropdown(){
   const list = document.getElementById('key-dropdown-list');
+  const tBtn = document.getElementById('key-dropdown-btn');
   if(list) list.style.display='none';
+  if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; tBtn.style.border='2px solid var(--chord)'; }
 }
 
 function buildMasterKeyDropdown(){
@@ -3016,9 +3034,11 @@ function buildMasterKeyDropdown(){
       const oldKey = selectedKey;
       selectedKey = newKey;
       label.textContent = newKey;
-      // Also update transpose label
+      // Also update transpose and panel labels
       const tLabel = document.getElementById('key-dropdown-label');
       if(tLabel) tLabel.textContent = newKey.replace('m','');
+      const pLabel = document.getElementById('keys-panel-label');
+      if(pLabel) pLabel.textContent = newKey.replace('m','') + (newKey.endsWith('m') ? 'm' : '');
       // Update song key without transposing notes
       if(editingId){
         const idx = songs.findIndex(s=>s.id===editingId);
@@ -3056,25 +3076,81 @@ function closeMasterKeyDropdown(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  const btn = document.getElementById('key-dropdown-btn');
-  if(btn) btn.addEventListener('click', ()=>{
-    const list = document.getElementById('key-dropdown-list');
-    if(!list) return;
-    list.style.display = list.style.display==='none' ? 'block' : 'none';
-    if(list.style.display==='block') buildKeyDropdown();
+  // ── Combined keys panel button ──
+  const panelBtn = document.getElementById('keys-panel-btn');
+  if(panelBtn) panelBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const panel = document.getElementById('keys-panel-list');
+    if(!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
+    panelBtn.style.background = isOpen ? 'var(--surface3)' : 'var(--surface2)';
+    if(!isOpen){
+      // Close any open sub-dropdowns when panel opens
+      const mkList = document.getElementById('master-key-dropdown-list');
+      const tList  = document.getElementById('key-dropdown-list');
+      if(mkList) mkList.style.display = 'none';
+      if(tList)  tList.style.display  = 'none';
+      closeMasterKeyDropdown();
+    }
+    if(isOpen) closeAllKeyDropdowns();
   });
 
+  // ── Master key button inside panel ──
   const mBtn = document.getElementById('master-key-dropdown-btn');
   if(mBtn) mBtn.addEventListener('click', e=>{
     e.stopPropagation();
     const list = document.getElementById('master-key-dropdown-list');
+    const tList = document.getElementById('key-dropdown-list');
     if(!list) return;
     const isOpen = list.style.display !== 'none';
+    // Close transpose if open
+    if(tList) tList.style.display = 'none';
+    const tBtn = document.getElementById('key-dropdown-btn');
+    if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; tBtn.style.border='2px solid var(--chord)'; }
     list.style.display = isOpen ? 'none' : 'block';
     if(!isOpen) buildMasterKeyDropdown();
     else closeMasterKeyDropdown();
   });
+
+  // ── Transpose button inside panel ──
+  const tBtn = document.getElementById('key-dropdown-btn');
+  if(tBtn) tBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const list = document.getElementById('key-dropdown-list');
+    const mkList = document.getElementById('master-key-dropdown-list');
+    if(!list) return;
+    const isOpen = list.style.display !== 'none';
+    // Close master key if open
+    if(mkList) mkList.style.display = 'none';
+    closeMasterKeyDropdown();
+    list.style.display = isOpen ? 'none' : 'block';
+    tBtn.style.background = isOpen ? 'transparent' : 'var(--chord)';
+    tBtn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
+    tBtn.style.border = '2px solid var(--chord)';
+    if(!isOpen) buildKeyDropdown();
+  });
+
+  // ── Close panel on tap outside ──
+  document.addEventListener('click', e=>{
+    const wrap = document.getElementById('keys-panel-wrap');
+    if(wrap && !wrap.contains(e.target)) closeAllKeyDropdowns();
+  });
 });
+
+function closeAllKeyDropdowns(){
+  const panel = document.getElementById('keys-panel-list');
+  const mkList = document.getElementById('master-key-dropdown-list');
+  const tList  = document.getElementById('key-dropdown-list');
+  const panelBtn = document.getElementById('keys-panel-btn');
+  const tBtn   = document.getElementById('key-dropdown-btn');
+  if(panel)    panel.style.display   = 'none';
+  if(mkList)   mkList.style.display  = 'none';
+  if(tList)    tList.style.display   = 'none';
+  if(panelBtn) panelBtn.style.background = 'var(--surface3)';
+  if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; tBtn.style.border='2px solid var(--chord)'; }
+  closeMasterKeyDropdown();
+}
 
 // ── AUTO-BRACKET TOGGLE ──
 document.addEventListener('DOMContentLoaded',()=>{
@@ -3576,10 +3652,15 @@ function openQS(){
   newTBtn.addEventListener('click', e => {
     e.stopPropagation();
     const isOpen = tGrid.style.display !== 'none';
+    const upBtn   = document.getElementById('transpose-up');
+    const downBtn = document.getElementById('transpose-down');
     tGrid.style.display = isOpen ? 'none' : 'block';
     newTBtn.style.background = isOpen ? 'transparent' : 'var(--chord)';
     newTBtn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
     newTBtn.style.border = '2px solid var(--chord)';
+    // Show semitone buttons only when grid is open
+    if(upBtn)   upBtn.style.display   = isOpen ? 'none' : '';
+    if(downBtn) downBtn.style.display = isOpen ? 'none' : '';
     if(!isOpen){
       makeKeySelector(tGrid,
         () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
@@ -3629,8 +3710,13 @@ function refreshQSKeyGrid(){
     tBtn.style.color = 'var(--chord)';
     tBtn.style.border = '2px solid var(--chord)';
   }
-  // Close the grid when semitone step is used
+  // Close the grid and hide semitone buttons when semitone step is used
   if(tGrid) tGrid.style.display = 'none';
+  const upBtn   = document.getElementById('transpose-up');
+  const downBtn = document.getElementById('transpose-down');
+  if(upBtn)   upBtn.style.display   = 'none';
+  if(downBtn) downBtn.style.display = 'none';
+  if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; }
 }
 
 function refreshQSCapo(){
