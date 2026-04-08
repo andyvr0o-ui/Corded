@@ -847,7 +847,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <!-- Transpose row — always visible grid -->
       <div id="key-dropdown-wrap">
         <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Transpose To</div>
-        <div id="key-dropdown-grid" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+        <div id="key-dropdown-grid"></div>
       </div>
     </div>
 
@@ -3064,9 +3064,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     panel.style.display = isOpen ? 'none' : 'block';
     panelBtn.style.background = isOpen ? 'var(--surface3)' : 'var(--surface2)';
     if(!isOpen){
-      // Render transpose grid immediately when panel opens
+      // Always re-render transpose grid when panel opens to ensure fresh state
       buildKeyDropdown();
-      // Close master key grid if open
       closeMasterKeyDropdown();
     }
     if(isOpen) closeAllKeyDropdowns();
@@ -3593,10 +3592,14 @@ function openQS(){
     const idx = songs.findIndex(s=>s.id===currentSong.id);
     if(idx!==-1) songs[idx].transpose = currentTranspose;
     save(); renderSongView(); refreshQSCapo();
+    // Re-render grid to show updated highlight — keep grid open
+    makeKeySelector(tGrid,
+      () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
+      setTransposeKey,
+      'var(--chord)',
+      false
+    );
     updateTransposeBtn();
-    tGrid.style.display = 'none';
-    tBtn.style.background = 'transparent';
-    tBtn.style.color = 'var(--chord)';
   }
 
   // Clone button to remove old listeners
@@ -3658,24 +3661,33 @@ function closeQS(){
 
 function refreshQSKeyGrid(){
   if(!currentSong) return;
-  const tBtn = document.getElementById('qs-transpose-key-btn');
+  const tBtn  = document.getElementById('qs-transpose-key-btn');
   const tGrid = document.getElementById('qs-transpose-grid');
+  const raw = transposeChord(currentSong.key, currentTranspose);
+  const isMinor = currentSong.key.endsWith('m');
+  const label = normaliseNote(raw.replace('m','')) + (isMinor ? 'm' : '');
+  // Update button label
   if(tBtn){
-    const raw = transposeChord(currentSong.key, currentTranspose);
-    const isMinor = currentSong.key.endsWith('m');
-    const label = normaliseNote(raw.replace('m','')) + (isMinor ? 'm' : '');
     tBtn.textContent = label;
-    tBtn.style.background = 'transparent';
-    tBtn.style.color = 'var(--chord)';
     tBtn.style.border = '2px solid var(--chord)';
   }
-  // Close the grid and hide semitone buttons when semitone step is used
-  if(tGrid) tGrid.style.display = 'none';
-  const upBtn   = document.getElementById('transpose-up');
-  const downBtn = document.getElementById('transpose-down');
-  if(upBtn)   upBtn.style.display   = 'none';
-  if(downBtn) downBtn.style.display = 'none';
-  if(tBtn){ tBtn.style.background='transparent'; tBtn.style.color='var(--chord)'; }
+  // If grid is open, re-render it to update the highlighted key
+  if(tGrid && tGrid.style.display !== 'none'){
+    makeKeySelector(tGrid,
+      () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
+      (newKey) => {
+        const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
+        currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
+        currentSong.transpose = currentTranspose;
+        const idx = songs.findIndex(s=>s.id===currentSong.id);
+        if(idx!==-1) songs[idx].transpose = currentTranspose;
+        save(); renderSongView(); refreshQSCapo(); refreshQSKeyGrid();
+      },
+      'var(--chord)',
+      false
+    );
+    if(tBtn){ tBtn.style.background='var(--chord)'; tBtn.style.color='#0d0f14'; }
+  }
 }
 
 function refreshQSCapo(){
