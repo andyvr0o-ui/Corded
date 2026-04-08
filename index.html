@@ -3084,6 +3084,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     else closeMasterKeyDropdown();
   });
 
+  // ── Stop clicks inside the entire keys panel wrap from bubbling ──
+  const keysPanelWrap = document.getElementById('keys-panel-wrap');
+  if(keysPanelWrap) keysPanelWrap.addEventListener('click', e => e.stopPropagation());
+  const panelList = document.getElementById('keys-panel-list');
+  if(panelList) panelList.addEventListener('click', e => e.stopPropagation());
+
   // ── Close panel on tap outside ──
   document.addEventListener('click', e=>{
     const wrap = document.getElementById('keys-panel-wrap');
@@ -3620,8 +3626,10 @@ function openQS(){
     }
   });
 
-  // Close transpose grid on tap outside
+  // Stop all clicks inside QS transpose area from bubbling
   tGrid.addEventListener('click', e => e.stopPropagation());
+  document.getElementById('transpose-up').addEventListener('click', e => e.stopPropagation(), true);
+  document.getElementById('transpose-down').addEventListener('click', e => e.stopPropagation(), true);
 
   // Capo
   document.getElementById('qs-capo-val').textContent = capo;
@@ -3634,6 +3642,8 @@ function openQS(){
   // Show panel
   document.getElementById('qs-overlay').classList.add('open');
   document.getElementById('qs-panel').classList.add('open');
+  // Stop all taps inside QS panel from reaching the overlay (which would close QS)
+  // The qs-overlay sits behind qs-panel so only taps outside reach it
 }
 
 function closeQS(){
@@ -3684,6 +3694,8 @@ document.getElementById('qs-btn').addEventListener('click', e=>{
 });
 document.getElementById('qs-close').addEventListener('click', closeQS);
 document.getElementById('qs-overlay').addEventListener('click', closeQS);
+// Stop taps inside the QS panel from reaching the overlay behind it
+document.getElementById('qs-panel').addEventListener('click', e => e.stopPropagation());
 
 document.getElementById('qs-capo-inc').addEventListener('click',()=>{
   capo=Math.min(7,capo+1);
