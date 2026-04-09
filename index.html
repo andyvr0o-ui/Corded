@@ -3549,10 +3549,11 @@ document.getElementById('song-view-screen').addEventListener('click', e=>{
   if(e.target.closest('#song-view-header')) return;
   if(e.target.closest('#scroll-handle')) return;
   if(e.target.closest('#swipe-indicator')) return;
-  // Close chord tooltip on tap outside
+  // Close chord tooltip on tap outside — don't also toggle header on the same tap
   const tip=document.getElementById('chord-tooltip');
-  if(tip && tip.style.display==='block' && !e.target.closest('#chord-tooltip') && !e.target.closest('.seg-chord')){
-    tip.style.display='none';
+  if(tip && tip.style.display==='block'){
+    if(!e.target.closest('#chord-tooltip')) tip.style.display='none';
+    return; // consume the tap entirely — no header toggle
   }
   if(e.target.closest('#chord-tooltip')) return;
   toggleHeader();
