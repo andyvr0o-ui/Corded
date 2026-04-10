@@ -3399,7 +3399,7 @@ document.getElementById('import-btn').addEventListener('click',()=>{
 // ===== UG IMPORT BUTTON =====
 document.getElementById('ug-import-btn').addEventListener('click', () => {
   // Close drawer first
-  document.getElementById('settings-drawer').classList.remove('open');
+  closeDrawer();
   // Show a URL input dialog using appConfirm-style overlay
   const overlay = document.getElementById('app-confirm-overlay');
   const titleEl = document.getElementById('app-confirm-title');
