@@ -3643,52 +3643,39 @@ function ugContentToChordPro(content){
   // Normalise line endings
   out = out.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  // Convert section headers [Verse 1] → {c:Verse 1} (whole line only)
+  // Convert section headers [Verse 1] → {c:Verse 1} (whole-line only)
   out = out.replace(/^\[([^\]]+)\]\s*$/gim, (m, label) => '{c:' + label.trim() + '}');
 
-  // Process [tab]...[/tab] blocks — these contain chords-above-lyrics format
-  // e.g. [tab][ch]G[/ch]          [ch]Em[/ch]\nThe splendor of a King[/tab]
+  // Process [tab]...[/tab] blocks — chord line above lyric line
   out = out.replace(/\[tab\]([\s\S]*?)\[\/tab\]/gi, (match, inner) => {
     const lines = inner.split('\n');
     const result = [];
     let i = 0;
     while(i < lines.length){
       const line = lines[i];
-      // Is this a chord line? Contains [ch] tags
       if(line.includes('[ch]')){
-        // Extract chords with their positions
-        const chordLine = line.replace(/\[ch\](.*?)\[\/ch\]/g, '$1');
-        const lyricLine = (i + 1 < lines.length && !lines[i+1].includes('[ch]')) ? lines[i+1] : '';
+        const nextLine = i + 1 < lines.length ? lines[i+1] : '';
+        const hasLyric = nextLine && !nextLine.includes('[ch]') && nextLine.trim();
 
-        if(lyricLine){
-          // Convert chords-above-lyrics to ChordPro inline format
-          let cpLine = '';
-          let chordPos = 0;
-          let lyricPos = 0;
-          const chordMatches = [];
-          const re = /\[ch\](.*?)\[\/ch\]/g;
-          let cm;
-          // Find each chord and its column position in the raw chord line
-          const rawChordLine = line;
-          let stripped = '';
-          let pos = 0;
-          const tagRe = /\[ch\](.*?)\[\/ch\]/g;
-          let lastEnd = 0;
-          while((cm = tagRe.exec(rawChordLine)) !== null){
-            // Position = length of text before this chord tag (minus other tags already processed)
-            const textBefore = rawChordLine.slice(lastEnd, cm.index).replace(/\[ch\].*?\[\/ch\]/g, '');
-            pos += textBefore.length;
-            chordMatches.push({chord: cm[1], pos});
-            pos += cm[1].length;
-            lastEnd = cm.index + cm[0].length;
-          }
+        // Build chord position map
+        const chordMatches = [];
+        const tagRe = /\[ch\](.*?)\[\/ch\]/g;
+        let lastEnd = 0, pos = 0, cm;
+        while((cm = tagRe.exec(line)) !== null){
+          // Count characters before this chord tag (excluding other tags)
+          const textBefore = line.slice(lastEnd, cm.index);
+          pos += textBefore.length;
+          chordMatches.push({chord: cm[1], pos});
+          pos += cm[1].length;
+          lastEnd = cm.index + cm[0].length;
+        }
 
-          // Build ChordPro line inserting chords at lyric positions
-          const lyricArr = lyricLine.split('');
-          const maxPos = chordMatches.length ? chordMatches[chordMatches.length-1].pos : 0;
+        if(hasLyric){
+          // Merge chords into lyric line at correct positions
+          const lyricArr = nextLine.split('');
+          const maxPos = chordMatches[chordMatches.length-1].pos;
           while(lyricArr.length <= maxPos) lyricArr.push(' ');
-
-          let lp = 0, ci = 0;
+          let cpLine = '', lp = 0, ci = 0;
           while(lp <= lyricArr.length){
             while(ci < chordMatches.length && chordMatches[ci].pos === lp){
               cpLine += '[' + chordMatches[ci].chord + ']';
@@ -3700,24 +3687,33 @@ function ugContentToChordPro(content){
           result.push(cpLine.trimEnd());
           i += 2;
         } else {
-          // Chord-only line — emit as [chord][chord]
+          // Chord-only line
           const chords = [];
           const re2 = /\[ch\](.*?)\[\/ch\]/g;
           let m2;
           while((m2 = re2.exec(line)) !== null) chords.push(m2[1]);
-          if(chords.length) result.push(chords.map(c=>'['+c+']').join(''));
+          if(chords.length) result.push(chords.map(c=>'['+c+']').join(' '));
           i++;
         }
       } else {
-        // Plain lyric line — keep as is
-        if(line.trim()) result.push(line);
+        if(line.trim()) result.push(line.trim());
         i++;
       }
     }
     return result.join('\n');
   });
 
-  // Handle any remaining [ch]chord[/ch] outside tab blocks
+  // Handle [ch]chord[/ch] outside tab blocks (e.g. intro lines)
+  // If the whole line is just chords and spaces, make it a chord-only line
+  out = out.replace(/^([^\S\n]*(?:\[ch\][^\]]+\[\/ch\][^\S\n]*)+)$/gim, (m) => {
+    const chords = [];
+    const re = /\[ch\](.*?)\[\/ch\]/g;
+    let cm;
+    while((cm = re.exec(m)) !== null) chords.push(cm[1]);
+    return chords.map(c=>'['+c+']').join(' ');
+  });
+
+  // Convert any remaining [ch]chord[/ch] inline
   out = out.replace(/\[ch\](.*?)\[\/ch\]/gi, (m, chord) => '[' + chord.trim() + ']');
 
   // Collapse multiple blank lines
