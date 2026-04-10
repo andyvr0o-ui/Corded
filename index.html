@@ -2771,12 +2771,17 @@ function chordProToChart(raw){
       }
     }
     // Detect chord-only ChordPro lines — only [chord] tokens, no lyric text outside brackets
-    // Convert to a spaced chart chord row e.g. "G  Em7  C2  D"
+    // Convert to a spaced chart chord row with enough spacing so chords don't overlap
     if(/^(\s*\[[^\]]+\]\s*)+$/.test(line) && !line.replace(/\[[^\]]+\]/g,'').trim()){
-      const chords = [];
-      const re = /\[([^\]]+)\]/g; let m;
+      const chords = []; const re = /\[([^\]]+)\]/g; let m;
       while((m = re.exec(line)) !== null) chords.push(m[1]);
-      out.push(chords.join('  ')); // two spaces = enough separation in chart display
+      // Pad each chord to its own length + 2 spaces so they don't overlap in song view
+      let chartLine = '';
+      chords.forEach((c, idx) => {
+        chartLine += c;
+        if(idx < chords.length - 1) chartLine += ' '.repeat(c.length + 2);
+      });
+      out.push(chartLine);
       out.push(''); // blank lyric line so chartToChordPro round-trips correctly
       continue;
     }
@@ -3717,13 +3722,15 @@ function ugContentToChordPro(content){
   });
 
   // Handle [ch]chord[/ch] outside tab blocks (e.g. intro lines)
-  // Store as [chord] [chord] — chordProToChart now passes chord-only lines through unchanged
+  // Pad each chord with spaces equal to its own length + 2 so they don't overlap in song view
   out = out.replace(/^([^\S\n]*(?:\[ch\][^\]]+\[\/ch\][^\S\n]*)+)$/gim, (m) => {
     const chords = [];
     const re = /\[ch\](.*?)\[\/ch\]/g;
     let cm;
     while((cm = re.exec(m)) !== null) chords.push(cm[1]);
-    return chords.map(c => '[' + c + ']').join(' ');
+    return chords.map((c, idx) =>
+      '[' + c + ']' + (idx < chords.length - 1 ? ' '.repeat(c.length + 2) : '')
+    ).join('');
   });
 
   // Convert any remaining [ch]chord[/ch] inline
