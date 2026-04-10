@@ -1268,6 +1268,14 @@ function parseLine(line,steps,showChordsFlag){
   // Keep segments that have chords OR have non-whitespace lyric
   // Also keep space-only segments that separate chord groups
   const result = segs.map(s => ({chords: s.chords, lyric: s.lyric === '' ? ' ' : s.lyric}));
+  // Detect chord-only lines: all segs have chords at pos:0 and only whitespace lyrics
+  const isChordOnlyResult = result.length > 0 &&
+    result.every(s => s.lyric.trim() === '') &&
+    result.some(s => s.chords.length > 0);
+  if(isChordOnlyResult){
+    return {type:'chordrow', chords: result.filter(s=>s.chords.length>0).map(s=>s.chords[0].text)};
+  }
+
   return {type:'line', segs: result.filter((s, idx) => {
     if(s.chords.length > 0) return true; // always keep chord-bearing segments
     if(s.lyric.trim() !== '') return true; // keep non-empty lyric segments
@@ -1366,6 +1374,16 @@ function renderSongView(){
     }
     if(!inSec){html+='<div class="lyric-section">';inSec=true;}
     if(p.type==='blank'){html+='<div class="spacer-line"></div>';continue;}
+    if(p.type==='chordrow'){
+      // Chord-only line — render as flex row with natural spacing, no absolute positioning
+      html+='<div class="lyric-pair chord-only-row">';
+      for(const chord of p.chords){
+        const transposed = transposeChord(chord, currentTranspose - capo);
+        html+=`<span class="seg-chord" data-chord="${esc(transposed)}" style="position:relative;left:0;margin-right:1.4em">${esc(transposed)}</span>`;
+      }
+      html+='</div>';
+      continue;
+    }
 
     // Build flex-wrap segments: each seg = chord stacked above lyric
     // Build flex-wrap segments: each seg = one word with chords absolutely positioned above
