@@ -2771,8 +2771,13 @@ function chordProToChart(raw){
       }
     }
     // Detect chord-only ChordPro lines — only [chord] tokens, no lyric text outside brackets
+    // Convert to a spaced chart chord row e.g. "G  Em7  C2  D"
     if(/^(\s*\[[^\]]+\]\s*)+$/.test(line) && !line.replace(/\[[^\]]+\]/g,'').trim()){
-      out.push(line);
+      const chords = [];
+      const re = /\[([^\]]+)\]/g; let m;
+      while((m = re.exec(line)) !== null) chords.push(m[1]);
+      out.push(chords.join('  ')); // two spaces = enough separation in chart display
+      out.push(''); // blank lyric line so chartToChordPro round-trips correctly
       continue;
     }
     // Always output chord line if it has content
@@ -3674,6 +3679,9 @@ function ugContentToChordPro(content){
           pos += cm[1].length;
           lastEnd = cm.index + cm[0].length;
         }
+        // Subtract leading whitespace so first chord aligns to column 0
+        const leadingOffset = line.match(/^\s*/)[0].length;
+        chordMatches.forEach(c => c.pos = Math.max(0, c.pos - leadingOffset));
 
         if(hasLyric){
           // Merge chords into lyric line at correct positions
