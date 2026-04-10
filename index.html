@@ -3564,65 +3564,34 @@ async function handleUGImport(url){
     return;
   }
 
-  // Show progress toast
   const toastEl = document.getElementById('toast');
   toastEl.textContent = '⬇ Importing from Ultimate Guitar…';
   toastEl.classList.add('show');
 
   try {
-    // Fetch via Cloudflare proxy
     const proxyUrl = UG_PROXY + '/?url=' + encodeURIComponent(url);
     const res = await fetch(proxyUrl);
-    if(!res.ok) throw new Error('Fetch failed: ' + res.status);
-    const html = await res.text();
+    const data = await res.json();
 
-    // UG embeds all tab data in a JS variable in the page source
-    // Pattern: window.UGAPP.store.page.data = {...}
-    // Also appears as: <div class="js-store" data-content="...">
-    let tabData = null;
-
-    // Try data-content attribute first (most reliable)
-    const dataMatch = html.match(/data-content="({.+?})"/s) ||
-                      html.match(/data-content='({.+?})'/s);
-    if(dataMatch){
-      try {
-        const decoded = dataMatch[1].replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#039;/g,"'");
-        tabData = JSON.parse(decoded);
-      } catch(e){}
+    if(data.error){
+      toastEl.classList.remove('show');
+      // If Worker returned an html_sample, log it for debugging
+      if(data.html_sample) console.log('UG HTML sample:', data.html_sample);
+      throw new Error(data.error);
     }
 
-    // Fallback: try UGAPP store pattern
-    if(!tabData){
-      const ugMatch = html.match(/window\.UGAPP\.store\.page\.data\s*=\s*({.+?});\s*window/s) ||
-                      html.match(/"store":({.+?"tab_view".+?"wiki_tab".+?})\s*}\s*<\/script>/s);
-      if(ugMatch){
-        try { tabData = JSON.parse(ugMatch[1]); } catch(e){}
-      }
+    if(!data.content){
+      toastEl.classList.remove('show');
+      throw new Error('No chord content found in tab');
     }
 
-    if(!tabData) throw new Error('Could not find tab data in page. UG may have changed their format.');
+    const title  = (data.title || 'Untitled').trim();
+    const artist = (data.artist || '').trim();
+    const key    = normaliseImportKey(data.key || '');
+    const capo   = parseInt(data.capo) || 0;
+    const lyrics = ugContentToChordPro(data.content);
 
-    // Navigate the data structure
-    const tab = tabData.tab || tabData;
-    const tabView = tabData.tab_view || (tabData.store && tabData.store.page && tabData.store.page.data && tabData.store.page.data.tab_view);
-    const wikiTab = tabView && (tabView.wiki_tab || tabView.applicature);
-    const rawContent = wikiTab && (wikiTab.content || wikiTab.text);
-
-    if(!rawContent) throw new Error('No chord content found in tab data.');
-
-    // Extract metadata
-    const title  = (tab.song_name || tab.title || 'Untitled').trim();
-    const artist = (tab.artist_name || tab.artist || '').trim();
-    const rawKey = tab.tonality_name || tab.key || '';
-    const capoRaw = tabView && (tabView.meta && tabView.meta.capo);
-    const capo   = parseInt(capoRaw) || 0;
-
-    // Normalise key string to Corded format
-    const key = normaliseImportKey(rawKey);
-
-    // Convert UG format to ChordPro
-    // UG uses [ch]Am[/ch] for chords and [tab]...[/tab] for full tabs
-    const lyrics = ugContentToChordPro(rawContent, key);
+    toastEl.classList.remove('show');
 
     // Check for duplicate
     const duplicate = songs.find(s =>
@@ -3631,9 +3600,8 @@ async function handleUGImport(url){
     );
 
     if(duplicate){
-      toastEl.classList.remove('show');
       appConfirm(
-        `"${title}" by ${artist || 'Unknown'} already exists in your library. Import anyway?`,
+        `"${title}" by ${artist || 'Unknown'} already exists. Import anyway?`,
         () => finishUGImport(title, artist, key, capo, lyrics),
         {okLabel: 'Import Anyway'}
       );
@@ -3651,58 +3619,37 @@ async function handleUGImport(url){
 
 function finishUGImport(title, artist, key, capo, lyrics){
   const id = 'ug' + Date.now();
-  const song = {
-    id,
-    title,
-    artist,
-    key: key || 'C',
-    capo,
-    tag: 'worship',
-    transpose: 0,
-    lyrics
-  };
+  const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics};
   songs.unshift(song);
   save();
   renderLibrary();
   toast('✓ Imported: ' + title);
-  // Open the song after a short delay so toast is visible
   setTimeout(() => openSong(id), 600);
 }
 
 function normaliseImportKey(raw){
   if(!raw) return 'C';
-  // Strip minor suffix variants and re-apply cleanly
   const cleaned = raw.trim().replace(/\s*(minor|maj|major)\s*/i, m =>
     m.toLowerCase().includes('minor') ? 'm' : ''
   );
-  // Try to match a known key
   const m = cleaned.match(/^([A-G][#b]?)(m?)$/);
   if(!m) return 'C';
   return normaliseNote(m[1]) + (m[2] || '');
 }
 
-function ugContentToChordPro(content, key){
+function ugContentToChordPro(content){
   let out = content;
-
-  // Remove [tab]...[/tab] blocks (full guitar tabs — not useful as chord charts)
+  // Remove full guitar tab blocks
   out = out.replace(/\[tab\][\s\S]*?\[\/tab\]/gi, '');
-
   // Convert [ch]Am[/ch] → [Am]
   out = out.replace(/\[ch\](.*?)\[\/ch\]/gi, (m, chord) => '[' + chord.trim() + ']');
-
-  // Convert section markers: [Verse], [Chorus], [Bridge], [Verse 1] etc → {c:Verse 1}
+  // Convert section headers [Verse 1] → {c:Verse 1}
   out = out.replace(/^\[([^\]]+)\]\s*$/gim, (m, label) => '{c:' + label.trim() + '}');
-
-  // Clean up multiple blank lines → single blank line
+  // Collapse multiple blank lines
   out = out.replace(/\n{3,}/g, '\n\n');
-
-  // Trim
-  out = out.trim();
-
-  return out;
+  return out.trim();
 }
 
-// Called from native Android layer when app is launched via UG intent
 window.handleUGImport = handleUGImport;
 
 // ===== SAMPLE DATA =====
