@@ -3704,13 +3704,13 @@ function ugContentToChordPro(content){
   });
 
   // Handle [ch]chord[/ch] outside tab blocks (e.g. intro lines)
-  // If the whole line is just chords and spaces, make it a chord-only line
+  // If the whole line is just chords and spaces, make it a chord-only line with no spaces between
   out = out.replace(/^([^\S\n]*(?:\[ch\][^\]]+\[\/ch\][^\S\n]*)+)$/gim, (m) => {
     const chords = [];
     const re = /\[ch\](.*?)\[\/ch\]/g;
     let cm;
     while((cm = re.exec(m)) !== null) chords.push(cm[1]);
-    return chords.map(c=>'['+c+']').join(' ');
+    return chords.map(c=>'['+c+']').join('');
   });
 
   // Convert any remaining [ch]chord[/ch] inline
