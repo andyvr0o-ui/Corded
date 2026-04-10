@@ -2824,7 +2824,7 @@ function chartToChordPro(chart){
 
     // Chord-only line: isChordLine and next line is blank or another chord line or end
     if(isChordLine && (i + 1 >= lines.length || lines[i+1].trim() === '' || isChordOnlyLine(lines[i+1]) || /^\{/.test(lines[i+1]))){
-      // Chord-only line — convert to [chord][chord]... with no lyric
+      // Chord-only line — convert to [chord] with spacing proportional to chord length
       const chords2 = [];
       let ci2 = 0;
       while(ci2 < line.length){
@@ -2834,7 +2834,9 @@ function chartToChordPro(chart){
           chords2.push(line.slice(start, ci2));
         } else { ci2++; }
       }
-      out.push(chords2.map(c=>'['+c+']').join(''));
+      out.push(chords2.map((c, idx) =>
+        '['+c+']' + (idx < chords2.length - 1 ? ' '.repeat(c.length + 2) : '')
+      ).join(''));
       i++;
       if(i < lines.length && lines[i].trim() === '') { out.push(''); i++; } // consume blank
       continue;
