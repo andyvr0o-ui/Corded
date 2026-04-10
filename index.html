@@ -2770,6 +2770,11 @@ function chordProToChart(raw){
         // (handled implicitly — lyric just lags behind)
       }
     }
+    // Detect chord-only ChordPro lines — only [chord] tokens, no lyric text outside brackets
+    if(/^(\s*\[[^\]]+\]\s*)+$/.test(line) && !line.replace(/\[[^\]]+\]/g,'').trim()){
+      out.push(line);
+      continue;
+    }
     // Always output chord line if it has content
     if(chordLine.trim()){
       out.push(chordLine);
@@ -3704,13 +3709,13 @@ function ugContentToChordPro(content){
   });
 
   // Handle [ch]chord[/ch] outside tab blocks (e.g. intro lines)
-  // If the whole line is just chords and spaces, make it a chord-only line with no spaces between
+  // Store as [chord] [chord] — chordProToChart now passes chord-only lines through unchanged
   out = out.replace(/^([^\S\n]*(?:\[ch\][^\]]+\[\/ch\][^\S\n]*)+)$/gim, (m) => {
     const chords = [];
     const re = /\[ch\](.*?)\[\/ch\]/g;
     let cm;
     while((cm = re.exec(m)) !== null) chords.push(cm[1]);
-    return chords.map(c=>'['+c+']').join('');
+    return chords.map(c => '[' + c + ']').join(' ');
   });
 
   // Convert any remaining [ch]chord[/ch] inline
