@@ -187,11 +187,11 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 .lyric-pair{display:flex;flex-wrap:wrap;align-items:flex-end;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
 .lyric-seg{display:inline-flex;flex-direction:column;align-items:flex-start;flex-shrink:0;max-width:100%}
 /* Chord row: relative container so chords can be absolutely positioned */
-.seg-chord-row{position:relative;display:block;min-height:1.2em;white-space:pre}
-.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:pre;cursor:pointer;transition:color var(--t)}
+.seg-chord-row{position:relative;display:block;min-height:1.2em;white-space:nowrap}
+.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:nowrap;cursor:pointer;transition:color var(--t)}
 .seg-chord:hover{color:var(--accent)}
 .seg-chord.empty{visibility:hidden;display:block;min-height:1.2em}
-.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre}
+.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:nowrap}
 .spacer-line{height:10px}
 
 /* ── INTEGRATED SCROLL PILL — always visible bottom-right in song view ── */
