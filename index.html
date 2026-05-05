@@ -2817,13 +2817,14 @@ function chordProToChart(raw){
     }
     // Always output chord line if it has content
     if(chordLine.trim()){
+      // Pad lyric line with spaces to match chord line length
+      // This preserves chord spacing when converting back
+      while(lyricLine.length < chordLine.length) lyricLine += ' ';
       out.push(chordLine);
-      // Only push lyric line if it has actual content
-      // (chord-only lines have empty lyricLine — don't add a blank lyric row)
       if(lyricLine.trim()){
-        out.push(lyricLine);
+        out.push(lyricLine.trimEnd()); // trim only true trailing spaces
       } else {
-        // Mark as chord-only with a special empty lyric line so chartToChordPro knows
+        // Chord-only line — empty lyric row
         out.push('');
       }
     } else if(lyricLine.trim()){
@@ -2854,17 +2855,31 @@ function chartToChordPro(chart){
 
     // Chord-only line: isChordLine and next line is blank or another chord line or end
     if(isChordLine && (i + 1 >= lines.length || lines[i+1].trim() === '' || isChordOnlyLine(lines[i+1]) || /^\{/.test(lines[i+1]))){
-      // Chord-only line — convert to [chord][chord]... with no lyric
+      // Chord-only line — convert preserving spacing with spaces between chords
+      // Build a fake lyric line of spaces so positions are preserved
+      const spacedLyric = ' '.repeat(line.length);
       const chords2 = [];
       let ci2 = 0;
       while(ci2 < line.length){
         if(line[ci2] !== ' '){
           const start = ci2;
           while(ci2 < line.length && line[ci2] !== ' ') ci2++;
-          chords2.push(line.slice(start, ci2));
+          chords2.push({chord: line.slice(start, ci2), pos: start});
         } else { ci2++; }
       }
-      out.push(chords2.map(c=>'['+c+']').join(''));
+      // Build ChordPro with spaces as lyric to preserve positioning
+      let chordOnlyResult = '';
+      let lp2 = 0;
+      let ci2b = 0;
+      while(lp2 <= spacedLyric.length){
+        while(ci2b < chords2.length && chords2[ci2b].pos === lp2){
+          chordOnlyResult += '[' + chords2[ci2b].chord + ']';
+          ci2b++;
+        }
+        if(lp2 < spacedLyric.length) chordOnlyResult += spacedLyric[lp2];
+        lp2++;
+      }
+      out.push(chordOnlyResult.trimEnd());
       i++;
       if(i < lines.length && lines[i].trim() === '') { out.push(''); i++; } // consume blank
       continue;
