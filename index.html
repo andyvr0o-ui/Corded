@@ -27,7 +27,7 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
 
 /* ── TOP NAV ── */
-#top-nav{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}
+#top-nav{display:flex;align-items:center;gap:8px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}
 #app-title{font-family:'Playfair Display',serif;font-size:19px;color:var(--accent);flex:1}
 .icon-btn{width:38px;height:38px;border-radius:10px;border:none;background:var(--surface2);color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--t);flex-shrink:0}
 .icon-btn:hover,.icon-btn.active{background:var(--surface3);color:var(--accent)}
@@ -187,11 +187,11 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 .lyric-pair{display:flex;flex-wrap:wrap;align-items:flex-end;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
 .lyric-seg{display:inline-flex;flex-direction:column;align-items:flex-start;flex-shrink:0;max-width:100%}
 /* Chord row: relative container so chords can be absolutely positioned */
-.seg-chord-row{position:relative;display:block;min-height:1.2em;white-space:nowrap}
-.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:nowrap;cursor:pointer;transition:color var(--t)}
+.seg-chord-row{position:relative;display:block;min-height:1.2em;white-space:pre}
+.seg-chord{font-size:0.87em;font-weight:600;color:var(--chord);line-height:1.2;white-space:pre;cursor:pointer;transition:color var(--t)}
 .seg-chord:hover{color:var(--accent)}
 .seg-chord.empty{visibility:hidden;display:block;min-height:1.2em}
-.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:nowrap}
+.seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre}
 .spacer-line{height:10px}
 
 /* ── INTEGRATED SCROLL PILL — always visible bottom-right in song view ── */
@@ -495,7 +495,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 .chord-bar-pill.search-highlight{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
 
 /* ── MISC ── */
-#chord-tooltip{position:fixed;background:var(--surface2);border:1px solid var(--chord);border-radius:12px;padding:10px 14px;z-index:300;display:none;box-shadow:0 8px 32px rgba(0,0,0,.5);text-align:center;min-width:160px;max-width:calc(100vw - 16px);word-break:break-word;cursor:pointer}
+#chord-tooltip{position:fixed;background:var(--surface2);border:1px solid var(--chord);border-radius:12px;padding:9px 13px;z-index:300;display:none;box-shadow:0 8px 32px rgba(0,0,0,.5);text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .ct-name{color:var(--chord);font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700}
 .ct-notes{color:var(--text2);font-size:11px;margin-top:3px}
 .empty-state{padding:50px 28px;text-align:center;color:var(--text3)}
@@ -655,7 +655,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
             </button>
             <div id="sl-picker-dropdown"></div>
           </div>
-          <div id="delete-setlist-btn" style="display:none"></div>
+          <button id="delete-setlist-btn" style="display:none" title="Delete setlist">✕</button>
           <button id="add-setlist-fab" style="flex-shrink:0;padding:8px 16px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0d0f14;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;white-space:nowrap">+ New</button>
         </div>
         <!-- Hidden rename field (value still used for editing) -->
@@ -801,6 +801,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div style="display:flex;flex-direction:column;gap:7px">
       <button class="drawer-btn" id="export-btn">↓ Save Library to File</button>
       <button class="drawer-btn" id="import-library-btn">↑ Load Library from File</button>
+      <button class="drawer-btn" id="ug-import-btn">🎸 Import from Ultimate Guitar</button>
       <button class="drawer-btn" id="clear-btn" style="color:var(--danger);border-color:rgba(230,57,70,.3)">🗑 Clear Library</button>
     </div>
   </div>
@@ -1012,18 +1013,6 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 <div id="chord-tooltip"><div class="ct-name" id="tt-chord"></div><div class="ct-notes" id="tt-notes"></div></div>
 <div id="toast"></div>
-
-<!-- Donate popup -->
-<div id="donate-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px 22px 20px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.7);margin:0 16px;text-align:center">
-    <div style="font-size:28px;margin-bottom:10px">♪</div>
-    <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:10px">Enjoying Corded?</div>
-    <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:22px">Corded is free and made with care for worship teams by a single developer. If it's been a blessing, consider supporting its continued development with a small donation.</div>
-    <a id="donate-paypal-btn" href="https://paypal.me/avrpiano" target="_blank" style="display:block;padding:12px 20px;border-radius:12px;background:var(--accent);color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:10px">☕ Support via PayPal</a>
-    <button id="donate-later-btn" style="width:100%;padding:10px 20px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Maybe Later</button>
-    <button id="donate-never-btn" style="display:none;width:100%;padding:8px 20px;border-radius:12px;background:transparent;border:none;color:var(--text3);font-family:'Nunito',sans-serif;font-size:12px;cursor:pointer;margin-top:4px">Don't show again</button>
-  </div>
-</div>
 
 <!-- Rename dialog -->
 <div id="rename-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
@@ -1279,6 +1268,14 @@ function parseLine(line,steps,showChordsFlag){
   // Keep segments that have chords OR have non-whitespace lyric
   // Also keep space-only segments that separate chord groups
   const result = segs.map(s => ({chords: s.chords, lyric: s.lyric === '' ? ' ' : s.lyric}));
+  // Detect chord-only lines: all segs have chords at pos:0 and only whitespace lyrics
+  const isChordOnlyResult = result.length > 0 &&
+    result.every(s => s.lyric.trim() === '') &&
+    result.some(s => s.chords.length > 0);
+  if(isChordOnlyResult){
+    return {type:'chordrow', chords: result.filter(s=>s.chords.length>0).map(s=>s.chords[0].text)};
+  }
+
   return {type:'line', segs: result.filter((s, idx) => {
     if(s.chords.length > 0) return true; // always keep chord-bearing segments
     if(s.lyric.trim() !== '') return true; // keep non-empty lyric segments
@@ -1377,6 +1374,16 @@ function renderSongView(){
     }
     if(!inSec){html+='<div class="lyric-section">';inSec=true;}
     if(p.type==='blank'){html+='<div class="spacer-line"></div>';continue;}
+    if(p.type==='chordrow'){
+      // Chord-only line — render as flex row with natural spacing, no absolute positioning
+      html+='<div class="lyric-pair chord-only-row">';
+      for(const chord of p.chords){
+        const transposed = transposeChord(chord, currentTranspose - capo);
+        html+=`<span class="seg-chord" data-chord="${esc(transposed)}" style="position:relative;left:0;margin-right:1.4em">${esc(transposed)}</span>`;
+      }
+      html+='</div>';
+      continue;
+    }
 
     // Build flex-wrap segments: each seg = chord stacked above lyric
     // Build flex-wrap segments: each seg = one word with chords absolutely positioned above
@@ -1418,67 +1425,33 @@ function renderSongView(){
       const chord=el.dataset.chord;
       const currentlyOpen = tip.style.display==='block' && tip.dataset.chord===chord;
 
-      function showNotes(){
-        const notes=CHORD_NOTES[chord]||CHORD_NOTES[chord.replace('b','♭')]||[];
-        document.getElementById('tt-chord').textContent=chord;
-        document.getElementById('tt-notes').textContent=notes.length?notes.join(' · '):'No notes found';
-        tip.dataset.mode='notes';
-      }
-
-      function showRelated(){
-        const keyData=KEY_DATA[transposeChord(currentSong.key,currentTranspose)];
-        const related=keyData?[...(keyData.d||[]),...(keyData.s||[])].filter(c=>c!==chord):[];
-        document.getElementById('tt-chord').textContent=chord+' — related';
-        document.getElementById('tt-notes').textContent=related.length?related.join(' · '):'—';
-        tip.dataset.mode='related';
-      }
-
-      if(currentlyOpen){
-        // Already open for this chord — toggle mode on tooltip tap handled below
-        // Here just toggle if tapping the chord again
-        tip.dataset.mode==='notes' ? showRelated() : showNotes();
-      } else {
-        // Open fresh for this chord
-        tip.dataset.chord=chord;
-        showNotes();
-        // Position: centred horizontally, above the chord, fully on screen
+      function clampTip(){
+        const pad=8;
+        const tw=tip.offsetWidth||160;
+        const th=tip.offsetHeight||60;
         const rect=el.getBoundingClientRect();
-        const tipW=200; const tipH=70;
-        let left=rect.left+(rect.width/2)-(tipW/2);
-        let top=rect.top-tipH-8;
-        left=Math.max(8,Math.min(left,window.innerWidth-tipW-8));
-        top=top<50?rect.bottom+8:top; // flip below if too close to top
+        let left=rect.left+rect.width/2-tw/2;
+        let top=rect.top-th-8;
+        if(left<pad) left=pad;
+        if(left+tw>window.innerWidth-pad) left=window.innerWidth-tw-pad;
+        if(top<pad) top=rect.bottom+8; // flip below chord if too close to top
         tip.style.left=left+'px';
         tip.style.top=top+'px';
-        tip.style.width=tipW+'px';
-        tip.style.display='block';
       }
-    });
-  });
 
-  // Tap on tooltip itself toggles notes/related
-  const tip=document.getElementById('chord-tooltip');
-  if(tip){
-    const newTip=tip.cloneNode(true);
-    tip.parentNode.replaceChild(newTip,tip);
-    newTip.addEventListener('click',e=>{
-      e.stopPropagation();
-      if(newTip.dataset.mode==='notes'){
-        const chord=newTip.dataset.chord;
-        const keyData=KEY_DATA[transposeChord(currentSong.key,currentTranspose)];
-        const related=keyData?[...(keyData.d||[]),...(keyData.s||[])].filter(c=>c!==chord):[];
-        document.getElementById('tt-chord').textContent=chord+' — related';
-        document.getElementById('tt-notes').textContent=related.length?related.join(' · '):'—';
-        newTip.dataset.mode='related';
-      } else {
-        const chord=newTip.dataset.chord;
+      if(!currentlyOpen){
+        // First tap — show notes, position popup
         const notes=CHORD_NOTES[chord]||CHORD_NOTES[chord.replace('b','♭')]||[];
         document.getElementById('tt-chord').textContent=chord;
-        document.getElementById('tt-notes').textContent=notes.length?notes.join(' · '):'No notes found';
-        newTip.dataset.mode='notes';
+        document.getElementById('tt-notes').textContent=notes.length?notes.join(' · '):'—';
+        tip.dataset.mode='notes';
+        tip.dataset.chord=chord;
+        tip.style.display='block';
+        clampTip();
       }
+      // Toggling notes↔related handled by popup's own click listener below
     });
-  }
+  });
 
   const sl=activeSetlist();
   const inSL=sl?sl.songs.includes(currentSong.id):false;
@@ -1587,7 +1560,7 @@ document.getElementById('key-display').addEventListener('click',e=>{
   makeKeySelector(inner,
     ()=>normaliseNote(transposeChord(currentSong.key,currentTranspose).replace('m','')),
     (newKey)=>{
-      const gi=k=>{const si=SHARP_SCALE.indexOf(k);return si!==-1?si:FLAT_SCALE.indexOf(k);};
+      const gi=k=>{const r=k.replace('m','');const si=SHARP_SCALE.indexOf(r);return si!==-1?si:FLAT_SCALE.indexOf(r);};
       currentTranspose=((gi(newKey)-gi(currentSong.key))%12+12)%12;
       currentSong.transpose=currentTranspose;
       const sidx=songs.findIndex(s=>s.id===currentSong.id);
@@ -2815,16 +2788,30 @@ function chordProToChart(raw){
         // (handled implicitly — lyric just lags behind)
       }
     }
+    // Detect chord-only ChordPro lines — only [chord] tokens, no lyric text outside brackets
+    // Convert to a spaced chart chord row with enough spacing so chords don't overlap
+    if(/^(\s*\[[^\]]+\]\s*)+$/.test(line) && !line.replace(/\[[^\]]+\]/g,'').trim()){
+      const chords = []; const re = /\[([^\]]+)\]/g; let m;
+      while((m = re.exec(line)) !== null) chords.push(m[1]);
+      // Pad each chord to its own length + 2 spaces so they don't overlap in song view
+      let chartLine = '';
+      chords.forEach((c, idx) => {
+        chartLine += c;
+        if(idx < chords.length - 1) chartLine += ' '.repeat(c.length + 4);
+      });
+      out.push(chartLine);
+      out.push(''); // blank lyric line so chartToChordPro round-trips correctly
+      continue;
+    }
     // Always output chord line if it has content
     if(chordLine.trim()){
-      // Pad lyric line with spaces to match chord line length
-      // This preserves chord spacing when converting back
-      while(lyricLine.length < chordLine.length) lyricLine += ' ';
       out.push(chordLine);
+      // Only push lyric line if it has actual content
+      // (chord-only lines have empty lyricLine — don't add a blank lyric row)
       if(lyricLine.trim()){
-        out.push(lyricLine.trimEnd()); // trim only true trailing spaces
+        out.push(lyricLine);
       } else {
-        // Chord-only line — empty lyric row
+        // Mark as chord-only with a special empty lyric line so chartToChordPro knows
         out.push('');
       }
     } else if(lyricLine.trim()){
@@ -2855,31 +2842,19 @@ function chartToChordPro(chart){
 
     // Chord-only line: isChordLine and next line is blank or another chord line or end
     if(isChordLine && (i + 1 >= lines.length || lines[i+1].trim() === '' || isChordOnlyLine(lines[i+1]) || /^\{/.test(lines[i+1]))){
-      // Chord-only line — convert preserving spacing with spaces between chords
-      // Build a fake lyric line of spaces so positions are preserved
-      const spacedLyric = ' '.repeat(line.length);
+      // Chord-only line — convert to [chord] with spacing proportional to chord length
       const chords2 = [];
       let ci2 = 0;
       while(ci2 < line.length){
         if(line[ci2] !== ' '){
           const start = ci2;
           while(ci2 < line.length && line[ci2] !== ' ') ci2++;
-          chords2.push({chord: line.slice(start, ci2), pos: start});
+          chords2.push(line.slice(start, ci2));
         } else { ci2++; }
       }
-      // Build ChordPro with spaces as lyric to preserve positioning
-      let chordOnlyResult = '';
-      let lp2 = 0;
-      let ci2b = 0;
-      while(lp2 <= spacedLyric.length){
-        while(ci2b < chords2.length && chords2[ci2b].pos === lp2){
-          chordOnlyResult += '[' + chords2[ci2b].chord + ']';
-          ci2b++;
-        }
-        if(lp2 < spacedLyric.length) chordOnlyResult += spacedLyric[lp2];
-        lp2++;
-      }
-      out.push(chordOnlyResult.trimEnd());
+      out.push(chords2.map((c, idx) =>
+        '['+c+']' + (idx < chords2.length - 1 ? ' '.repeat(c.length + 4) : '')
+      ).join(''));
       i++;
       if(i < lines.length && lines[i].trim() === '') { out.push(''); i++; } // consume blank
       continue;
@@ -3091,7 +3066,7 @@ function buildMasterKeyDropdown(){
         if(idx!==-1){
           songs[idx].key = newKey;
           songs[idx].transpose = 0;
-          if(currentSong&&currentSong.id===editingId){ currentSong.key=newKey; currentSong.transpose=0; }
+          if(currentSong&&currentSong.id===editingId){ currentSong.key=newKey; currentSong.transpose=0; currentTranspose=0; }
         }
         save();
       }
@@ -3456,6 +3431,56 @@ document.getElementById('import-btn').addEventListener('click',()=>{
   inp.click();
 });
 
+// ===== UG IMPORT BUTTON =====
+document.getElementById('ug-import-btn').addEventListener('click', () => {
+  // Close drawer first
+  closeDrawer();
+  // Show a URL input dialog using appConfirm-style overlay
+  const overlay = document.getElementById('app-confirm-overlay');
+  const titleEl = document.getElementById('app-confirm-title');
+  const msgEl   = document.getElementById('app-confirm-msg');
+  const okBtn   = document.getElementById('app-confirm-ok');
+  const cancelBtn = document.getElementById('app-confirm-cancel');
+
+  titleEl.textContent = 'Import from Ultimate Guitar';
+  titleEl.style.display = '';
+
+  // Replace message with an input field
+  msgEl.innerHTML = '';
+  const inp = document.createElement('input');
+  inp.type = 'url';
+  inp.placeholder = 'https://tabs.ultimate-guitar.com/...';
+  inp.style.cssText = 'width:100%;padding:8px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);color:var(--text);font-size:13px;font-family:\'JetBrains Mono\',monospace;outline:none;margin-top:4px;box-sizing:border-box';
+  msgEl.appendChild(inp);
+
+  okBtn.textContent = 'Import';
+  okBtn.style.background = 'var(--chord)';
+  okBtn.style.color = '#0d0f14';
+  overlay.style.display = 'flex';
+
+  setTimeout(() => inp.focus(), 100);
+
+  const cleanup = () => {
+    overlay.style.display = 'none';
+    msgEl.textContent = '';
+    okBtn.onclick = null;
+    cancelBtn.onclick = null;
+  };
+
+  okBtn.onclick = () => {
+    const url = inp.value.trim();
+    cleanup();
+    if(url) handleUGImport(url);
+  };
+
+  inp.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); okBtn.click(); }
+    if(e.key === 'Escape') cleanup();
+  });
+
+  cancelBtn.onclick = () => cleanup();
+});
+
 // ===== SORT =====
 let sortAZ=true;
 document.getElementById('sort-btn').addEventListener('click',()=>{
@@ -3538,10 +3563,206 @@ function switchTab(screenId, showContent){
   }
 }
 
+document.getElementById('chord-tooltip').addEventListener('click', e=>{
+  e.stopPropagation();
+  const tip=e.currentTarget;
+  if(tip.style.display!=='block') return;
+  const chord=tip.dataset.chord;
+  if(!chord||!currentSong) return;
+  if(tip.dataset.mode==='notes'){
+    // Toggle to related chords
+    const keyData=KEY_DATA[transposeChord(currentSong.key,currentTranspose)];
+    const related=keyData?[...(keyData.d||[]),...(keyData.s||[])].filter(c=>c!==chord):[];
+    document.getElementById('tt-chord').textContent=chord+' — related';
+    document.getElementById('tt-notes').textContent=related.length?related.join(' · '):'—';
+    tip.dataset.mode='related';
+  } else {
+    // Toggle back to notes
+    const notes=CHORD_NOTES[chord]||CHORD_NOTES[chord.replace('b','♭')]||[];
+    document.getElementById('tt-chord').textContent=chord;
+    document.getElementById('tt-notes').textContent=notes.length?notes.join(' · '):'—';
+    tip.dataset.mode='notes';
+  }
+});
+
 document.addEventListener('click',e=>{
-  if(!e.target.classList.contains('seg-chord')&&!e.target.classList.contains('ct-name'))
+  if(!e.target.closest('#chord-tooltip')&&!e.target.classList.contains('seg-chord'))
     document.getElementById('chord-tooltip').style.display='none';
 });
+
+// ===== ULTIMATE GUITAR IMPORT =====
+const UG_PROXY = 'https://shrill-recipe-ec7f.andyvr0o.workers.dev';
+
+async function handleUGImport(url){
+  if(!url || !url.includes('ultimate-guitar.com')){
+    toast('Not a valid Ultimate Guitar URL');
+    return;
+  }
+
+  const toastEl = document.getElementById('toast');
+  toastEl.textContent = '⬇ Importing from Ultimate Guitar…';
+  toastEl.classList.add('show');
+
+  try {
+    const proxyUrl = UG_PROXY + '/?url=' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl);
+    const data = await res.json();
+
+    if(data.error){
+      toastEl.classList.remove('show');
+      // If Worker returned an html_sample, log it for debugging
+      if(data.html_sample) console.log('UG HTML sample:', data.html_sample);
+      throw new Error(data.error);
+    }
+
+    if(!data.content){
+      toastEl.classList.remove('show');
+      throw new Error('No chord content found in tab');
+    }
+
+    const title  = (data.title || 'Untitled').trim();
+    const artist = (data.artist || '').trim();
+    const key    = normaliseImportKey(data.key || '');
+    const capo   = parseInt(data.capo) || 0;
+    const lyrics = ugContentToChordPro(data.content);
+
+    toastEl.classList.remove('show');
+
+    // Check for duplicate
+    const duplicate = songs.find(s =>
+      s.title.toLowerCase() === title.toLowerCase() &&
+      s.artist.toLowerCase() === artist.toLowerCase()
+    );
+
+    if(duplicate){
+      appConfirm(
+        `"${title}" by ${artist || 'Unknown'} already exists. Import anyway?`,
+        () => finishUGImport(title, artist, key, capo, lyrics),
+        {okLabel: 'Import Anyway'}
+      );
+      return;
+    }
+
+    finishUGImport(title, artist, key, capo, lyrics);
+
+  } catch(err) {
+    toastEl.classList.remove('show');
+    toast('Import failed: ' + err.message);
+    console.error('UG import error:', err);
+  }
+}
+
+function finishUGImport(title, artist, key, capo, lyrics){
+  const id = 'ug' + Date.now();
+  const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics};
+  songs.unshift(song);
+  save();
+  renderLibrary();
+  toast('✓ Imported: ' + title);
+  setTimeout(() => openSong(id), 600);
+}
+
+function normaliseImportKey(raw){
+  if(!raw) return 'C';
+  const cleaned = raw.trim().replace(/\s*(minor|maj|major)\s*/i, m =>
+    m.toLowerCase().includes('minor') ? 'm' : ''
+  );
+  const m = cleaned.match(/^([A-G][#b]?)(m?)$/);
+  if(!m) return 'C';
+  return normaliseNote(m[1]) + (m[2] || '');
+}
+
+function ugContentToChordPro(content){
+  let out = content;
+
+  // Normalise line endings
+  out = out.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // Convert section headers [Verse 1] → {c:Verse 1} (whole-line only)
+  out = out.replace(/^\[([^\]]+)\]\s*$/gim, (m, label) => '{c:' + label.trim() + '}');
+
+  // Process [tab]...[/tab] blocks — chord line above lyric line
+  out = out.replace(/\[tab\]([\s\S]*?)\[\/tab\]/gi, (match, inner) => {
+    const lines = inner.split('\n');
+    const result = [];
+    let i = 0;
+    while(i < lines.length){
+      const line = lines[i];
+      if(line.includes('[ch]')){
+        const nextLine = i + 1 < lines.length ? lines[i+1] : '';
+        const hasLyric = nextLine && !nextLine.includes('[ch]') && nextLine.trim();
+
+        // Build chord position map
+        const chordMatches = [];
+        const tagRe = /\[ch\](.*?)\[\/ch\]/g;
+        let lastEnd = 0, pos = 0, cm;
+        while((cm = tagRe.exec(line)) !== null){
+          // Count characters before this chord tag (excluding other tags)
+          const textBefore = line.slice(lastEnd, cm.index);
+          pos += textBefore.length;
+          chordMatches.push({chord: cm[1], pos});
+          pos += cm[1].length;
+          lastEnd = cm.index + cm[0].length;
+        }
+        // Subtract leading whitespace so first chord aligns to column 0
+        const leadingOffset = line.match(/^\s*/)[0].length;
+        chordMatches.forEach(c => c.pos = Math.max(0, c.pos - leadingOffset));
+
+        if(hasLyric){
+          // Merge chords into lyric line at correct positions
+          const lyricArr = nextLine.split('');
+          const maxPos = chordMatches[chordMatches.length-1].pos;
+          while(lyricArr.length <= maxPos) lyricArr.push(' ');
+          let cpLine = '', lp = 0, ci = 0;
+          while(lp <= lyricArr.length){
+            while(ci < chordMatches.length && chordMatches[ci].pos === lp){
+              cpLine += '[' + chordMatches[ci].chord + ']';
+              ci++;
+            }
+            if(lp < lyricArr.length) cpLine += lyricArr[lp];
+            lp++;
+          }
+          result.push(cpLine.trimEnd());
+          i += 2;
+        } else {
+          // Chord-only line
+          const chords = [];
+          const re2 = /\[ch\](.*?)\[\/ch\]/g;
+          let m2;
+          while((m2 = re2.exec(line)) !== null) chords.push(m2[1]);
+          if(chords.length) result.push(chords.map(c=>'['+c+']').join(' '));
+          i++;
+        }
+      } else {
+        if(line.trim()) result.push(line.trim());
+        i++;
+      }
+    }
+    return result.join('\n');
+  });
+
+  // Handle [ch]chord[/ch] outside tab blocks (e.g. intro lines)
+  // Pad each chord with spaces equal to its own length + 2 so they don't overlap in song view
+  out = out.replace(/^([^\S\n]*(?:\[ch\][^\]]+\[\/ch\][^\S\n]*)+)$/gim, (m) => {
+    const chords = [];
+    const re = /\[ch\](.*?)\[\/ch\]/g;
+    let cm;
+    while((cm = re.exec(m)) !== null) chords.push(cm[1]);
+    return chords.map((c, idx) =>
+      '[' + c + ']' + (idx < chords.length - 1 ? ' '.repeat(c.length + 4) : '')
+    ).join('');
+  });
+
+  // Convert any remaining [ch]chord[/ch] inline
+  out = out.replace(/\[ch\](.*?)\[\/ch\]/gi, (m, chord) => '[' + chord.trim() + ']');
+
+  // Collapse multiple blank lines
+  out = out.replace(/\n{3,}/g, '\n\n');
+
+  return out.trim();
+}
+
+window.handleUGImport = handleUGImport;
 
 // ===== SAMPLE DATA =====
 function getSampleSongs(){return[
@@ -3588,10 +3809,11 @@ document.getElementById('song-view-screen').addEventListener('click', e=>{
   if(e.target.closest('#song-view-header')) return;
   if(e.target.closest('#scroll-handle')) return;
   if(e.target.closest('#swipe-indicator')) return;
-  // Close chord tooltip on tap outside
+  // Close chord tooltip on tap outside — don't also toggle header on the same tap
   const tip=document.getElementById('chord-tooltip');
-  if(tip && tip.style.display==='block' && !e.target.closest('#chord-tooltip') && !e.target.closest('.seg-chord')){
-    tip.style.display='none';
+  if(tip && tip.style.display==='block'){
+    if(!e.target.closest('#chord-tooltip')) tip.style.display='none';
+    return; // consume the tap entirely — no header toggle
   }
   if(e.target.closest('#chord-tooltip')) return;
   toggleHeader();
@@ -3642,16 +3864,18 @@ function openQS(){
   }
 
   function updateTransposeBtn(){
-    tBtn.textContent = getTransposeKey().replace('m','') + (currentSong.key.endsWith('m') ? 'm' : '');
+    const liveBtn = document.getElementById('qs-transpose-key-btn');
+    if(!liveBtn) return;
+    liveBtn.textContent = getTransposeKey().replace('m','') + (currentSong.key.endsWith('m') ? 'm' : '');
     // Filled when open, outline when closed
     const isOpen = tGrid.style.display !== 'none';
-    tBtn.style.background = isOpen ? 'var(--chord)' : 'transparent';
-    tBtn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
-    tBtn.style.border = '2px solid var(--chord)';
+    liveBtn.style.background = isOpen ? 'var(--chord)' : 'transparent';
+    liveBtn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
+    liveBtn.style.border = '2px solid var(--chord)';
   }
 
   function setTransposeKey(newKey){
-    const gi = k => { const si=SHARP_SCALE.indexOf(k.replace('m','')); return si!==-1?si:FLAT_SCALE.indexOf(k.replace('m','')); };
+    const gi = k => { const r=k.replace('m',''); const si=SHARP_SCALE.indexOf(r); return si!==-1?si:FLAT_SCALE.indexOf(r); };
     currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
     currentSong.transpose = currentTranspose;
     const idx = songs.findIndex(s=>s.id===currentSong.id);
@@ -3669,13 +3893,16 @@ function openQS(){
 
   newTBtn.addEventListener('click', e => {
     e.stopPropagation();
+    const btn    = document.getElementById('qs-transpose-key-btn');
     const isOpen = tGrid.style.display !== 'none';
     const upBtn   = document.getElementById('transpose-up');
     const downBtn = document.getElementById('transpose-down');
     tGrid.style.display = isOpen ? 'none' : 'block';
-    newTBtn.style.background = isOpen ? 'transparent' : 'var(--chord)';
-    newTBtn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
-    newTBtn.style.border = '2px solid var(--chord)';
+    if(btn){
+      btn.style.background = isOpen ? 'transparent' : 'var(--chord)';
+      btn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
+      btn.style.border = '2px solid var(--chord)';
+    }
     // Show semitone buttons only when grid is open
     if(upBtn)   upBtn.style.display   = isOpen ? 'none' : '';
     if(downBtn) downBtn.style.display = isOpen ? 'none' : '';
@@ -3742,7 +3969,7 @@ function refreshQSKeyGrid(){
 
 function setQSTransposeKey(newKey){
   if(!currentSong) return;
-  const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
+  const gi = k => { const r=k.replace('m',''); const si=SHARP_SCALE.indexOf(r); return si!==-1?si:FLAT_SCALE.indexOf(r); };
   currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
   currentSong.transpose = currentTranspose;
   const idx = songs.findIndex(s=>s.id===currentSong.id);
@@ -4289,92 +4516,6 @@ if(!window.matchMedia('(display-mode: standalone)').matches && !localStorage.get
 
 <script>
 // ═══════════════════════════════════════════════════════
-// ULTIMATE GUITAR IMPORT
-// ═══════════════════════════════════════════════════════
-const UG_PROXY = 'https://shrill-recipe-ec7f.andyvr0o.workers.dev';
-
-async function handleUGImport(url){
-  if(!url || !url.includes('ultimate-guitar.com')){
-    toast('Not a valid Ultimate Guitar URL');
-    return;
-  }
-  toast('⬇ Importing from Ultimate Guitar…');
-  try {
-    const res = await fetch(UG_PROXY + '/?url=' + encodeURIComponent(url));
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
-    if(!data.content) throw new Error('No chord content found');
-
-    const title  = (data.title  || 'Untitled').trim();
-    const artist = (data.artist || '').trim();
-    const key    = normaliseImportKey(data.key || '');
-    const capo   = parseInt(data.capo) || 0;
-    const lyrics = ugContentToChordPro(data.content);
-
-    const duplicate = songs.find(s =>
-      s.title.toLowerCase()  === title.toLowerCase() &&
-      s.artist.toLowerCase() === artist.toLowerCase()
-    );
-    if(duplicate){
-      appConfirm(
-        `"${title}" by ${artist||'Unknown'} already exists. Import anyway?`,
-        () => finishUGImport(title, artist, key, capo, lyrics),
-        {okLabel:'Import Anyway'}
-      );
-      return;
-    }
-    finishUGImport(title, artist, key, capo, lyrics);
-  } catch(err){
-    toast('Import failed: ' + err.message);
-    console.error('UG import error:', err);
-  }
-}
-
-function finishUGImport(title, artist, key, capo, lyrics){
-  const id = 'ug' + Date.now();
-  const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics};
-  songs.unshift(song);
-  save();
-  renderLibrary();
-  toast('✓ Imported: ' + title);
-  setTimeout(()=>openSong(id), 600);
-}
-
-function normaliseImportKey(raw){
-  if(!raw) return 'C';
-  const cleaned = raw.trim().replace(/\s*(minor|maj|major)\s*/i, m =>
-    m.toLowerCase().includes('minor') ? 'm' : ''
-  );
-  const match = cleaned.match(/^([A-G][#b]?m?)$/);
-  return match ? match[1] : 'C';
-}
-
-function ugContentToChordPro(content){
-  if(!content) return '';
-  // Replace [ch]X[/ch] with [X]
-  let text = content.replace(/\[ch\](.*?)\[\/ch\]/g, '[$1]');
-  // Replace [tab] / [/tab] markers
-  text = text.replace(/\[tab\]/g, '').replace(/\[\/tab\]/g, '');
-  // Replace section markers like [Verse], [Chorus] etc with {c: Verse}
-  text = text.replace(/\[([^\]]+)\]/g, (m, name) => {
-    // If it looks like a chord (single letter + optional acc + optional suffix) keep as chord
-    if(/^[A-G][#b]?[a-z0-9\/]*$/.test(name)) return m;
-    return '{c: ' + name + '}';
-  });
-  return text.trim();
-}
-
-// Called by MainActivity when a UG URL is shared to the app
-window.handleUGImport = handleUGImport;
-
-// Check for UG URL on page load (passed as ?ugurl= param)
-window.addEventListener('load', ()=>{
-  const params = new URLSearchParams(window.location.search);
-  const ugUrl = params.get('ugurl');
-  if(ugUrl) setTimeout(()=>handleUGImport(ugUrl), 1000);
-});
-
-// ═══════════════════════════════════════════════════════
 // GOOGLE DRIVE SYNC
 // ═══════════════════════════════════════════════════════
 const GDRIVE_CLIENT_ID = '849890350871-8flmdadrdaic2thos0cr7tbht3auulkh.apps.googleusercontent.com';
@@ -4601,80 +4742,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 
 window.addEventListener('load', initGdrive);
-
-// ═══════════════════════════════════════════════════════
-// DONATE POPUP
-// ═══════════════════════════════════════════════════════
-const DONATE_LAUNCH_INTERVAL = 10;  // show every N launches
-const DONATE_MAX_CYCLES      = 8;   // show "Don't show again" on 8th cycle
-
-function initDonatePopup(){
-  // Skip entirely for personal build
-  if(window.Android && window.Android.isPersonalBuild && window.Android.isPersonalBuild()) return;
-
-  const dismissed = localStorage.getItem('donate_dismissed') === '1';
-  if(dismissed) return;
-
-  // Increment launch count
-  let launches = parseInt(localStorage.getItem('donate_launches') || '0') + 1;
-  localStorage.setItem('donate_launches', launches.toString());
-
-  // Check if it's time to show
-  if(launches < DONATE_LAUNCH_INTERVAL) return;
-
-  // Reset launch counter
-  localStorage.setItem('donate_launches', '0');
-
-  // Increment popup cycle count
-  let cycles = parseInt(localStorage.getItem('donate_cycles') || '0') + 1;
-  localStorage.setItem('donate_cycles', cycles.toString());
-
-  // Show "Don't show again" on 8th cycle
-  const neverBtn = document.getElementById('donate-never-btn');
-  if(neverBtn) neverBtn.style.display = cycles >= DONATE_MAX_CYCLES ? 'block' : 'none';
-
-  // Show popup after short delay so app loads first
-  setTimeout(showDonatePopup, 1500);
-}
-
-function showDonatePopup(){
-  const overlay = document.getElementById('donate-overlay');
-  if(overlay) overlay.style.display = 'flex';
-}
-
-function hideDonatePopup(){
-  const overlay = document.getElementById('donate-overlay');
-  if(overlay) overlay.style.display = 'none';
-}
-
-document.addEventListener('DOMContentLoaded', ()=>{
-  // Maybe Later — hide popup, reset launch counter
-  document.getElementById('donate-later-btn').addEventListener('click', ()=>{
-    hideDonatePopup();
-    // Reset cycles if on 8th+ cycle (so Don't show again resets too)
-    const cycles = parseInt(localStorage.getItem('donate_cycles') || '0');
-    if(cycles >= DONATE_MAX_CYCLES){
-      localStorage.setItem('donate_cycles', '0');
-    }
-  });
-
-  // Don't show again — set dismissed flag permanently
-  document.getElementById('donate-never-btn').addEventListener('click', ()=>{
-    hideDonatePopup();
-    localStorage.setItem('donate_dismissed', '1');
-  });
-
-  // PayPal button — hide popup after tapping (they donated!)
-  document.getElementById('donate-paypal-btn').addEventListener('click', ()=>{
-    setTimeout(()=>{
-      hideDonatePopup();
-      localStorage.setItem('donate_dismissed', '1');
-      toast('Thank you for your support! 🙏');
-    }, 500);
-  });
-});
-
-window.addEventListener('load', ()=>{ setTimeout(initDonatePopup, 500); });
 
 // Auto sync when app goes to background
 document.addEventListener('visibilitychange', ()=>{
