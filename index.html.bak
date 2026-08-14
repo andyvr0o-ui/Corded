@@ -989,37 +989,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <button class="icon-btn" id="qs-close">✕</button>
   </div>
   <div class="qs-body">
-    <!-- Member personal settings — shown only when viewing team song as member -->
-    <div id="qs-member-section" style="display:none;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div class="qs-section-label" style="margin:0">Team Key</div>
-        <span id="qs-team-key-label" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:4px 10px"></span>
-      </div>
-      <div class="qs-section-label" style="margin-bottom:6px">My Key <span style="font-size:9px;font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0">(personal)</span></div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-        <button id="qs-personal-key-btn" style="padding:7px 14px;border-radius:8px;background:transparent;color:var(--accent);border:2px solid var(--accent);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center">G</button>
-        <button class="qs-step-btn" id="personal-transpose-down" style="border-radius:10px;flex:1">♭ −1</button>
-        <button class="qs-step-btn" id="personal-transpose-up" style="border-radius:10px;flex:1">♯ +1</button>
-      </div>
-      <div id="qs-personal-key-grid" style="display:none;margin-bottom:10px"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <div class="qs-section-label" style="margin-bottom:4px">My Capo <span style="font-size:9px;font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0">(personal)</span></div>
-          <div class="qs-stepper-row">
-            <button class="qs-step-btn" id="qs-personal-capo-dec">−</button>
-            <div class="qs-step-val" id="qs-personal-capo-val">0</div>
-            <button class="qs-step-btn" id="qs-personal-capo-inc">+</button>
-            <span class="qs-step-label">fret</span>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-end;padding-bottom:4px">
-          <button id="qs-personal-reset-btn" style="width:100%;padding:8px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Reset to Team</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Transpose Key — dropdown (leader / no team) -->
-    <div id="qs-leader-transpose-section">
+    <!-- Transpose Key — dropdown -->
     <div class="qs-section-label">Transpose To</div>
     <div style="margin-bottom:8px;position:relative">
       <div style="display:flex;gap:8px;align-items:center">
@@ -1029,7 +999,6 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       </div>
       <div id="qs-transpose-grid" style="display:none;margin-top:8px"></div>
     </div>
-    </div><!-- end qs-leader-transpose-section -->
     <!-- Capo + Scroll Speed side by side -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
       <div>
@@ -1431,10 +1400,7 @@ function detectSongKey(lyrics){
 function renderSongView(){
   document.getElementById('sv-title').textContent=currentSong.title;
   document.getElementById('sv-artist').textContent=currentSong.artist||'';
-  // Members use personal transpose + capo on top of team settings
-  const effectiveCapo = isTeamMemberViewingTeamSong() ? personalCapo : capo;
-  const effectiveTrans = isTeamMemberViewingTeamSong() ? getEffectiveTranspose() : currentTranspose;
-  const soundingKey=transposeChord(currentSong.key, effectiveTrans - effectiveCapo);
+  const soundingKey=transposeChord(currentSong.key, currentTranspose - capo);
   // House convention: Ab Bb Eb are flat, everything else sharp — no key-based switching
   const displaySteps = currentTranspose - capo;
   document.getElementById('key-display').textContent = soundingKey + (capo ? ' 𝄪' + capo : '') + ' ▾';
@@ -1453,7 +1419,7 @@ function renderSongView(){
   let html='',inSec=false;
 
   for(const rawLine of rawLines){
-    const p=parseLine(rawLine, effectiveTrans - effectiveCapo, showChords);
+    const p=parseLine(rawLine, currentTranspose - capo, showChords);
     if(!p)continue;
     if(p.type==='section'){
       if(inSec)html+='</div>';
@@ -1581,8 +1547,6 @@ function openSong(id, context){
   setlistContext=context||null;
   // Restore saved transpose — song.key is the master, song.transpose is the display offset
   currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;showChords=true;
-  // Load personal settings for team members
-  loadPersonalSettings(currentSong.id);
   scrollSpeed = currentSong.scrollSpeed ?? defaultScrollSpeed;
   fontSize = currentSong.fontSize ?? parseInt(localStorage.getItem('cb_fontsize')||'15');
   // Load per-song two-col, fall back to global preference
@@ -3839,9 +3803,6 @@ function openQS(){
   document.getElementById('qs-panel').classList.add('open');
   // Stop all taps inside QS panel from reaching the overlay (which would close QS)
   // The qs-overlay sits behind qs-panel so only taps outside reach it
-
-  // Show/hide member personal settings
-  refreshPersonalQS();
 }
 
 function closeQS(){
@@ -4621,159 +4582,6 @@ window.addEventListener('load', ()=>{
   const params = new URLSearchParams(window.location.search);
   const ugUrl = params.get('ugurl');
   if(ugUrl) setTimeout(()=>handleUGImport(ugUrl), 1000);
-});
-
-// ═══════════════════════════════════════════════════════
-// PER-MUSICIAN PERSONAL SETTINGS
-// ═══════════════════════════════════════════════════════
-
-let personalTranspose = 0; // member's personal offset on top of team key
-let personalCapo      = 0; // member's personal capo
-
-function getPersonalKey(songId){
-  try {
-    const raw = localStorage.getItem('cb_personal_' + songId);
-    return raw ? JSON.parse(raw) : { transpose: 0, capo: 0 };
-  } catch(e){ return { transpose: 0, capo: 0 }; }
-}
-
-function savePersonalKey(songId, transpose, capo){
-  localStorage.setItem('cb_personal_' + songId, JSON.stringify({ transpose, capo }));
-}
-
-function clearPersonalKey(songId){
-  localStorage.removeItem('cb_personal_' + songId);
-}
-
-function isTeamMemberViewingTeamSong(){
-  return teamCode && teamRole === 'member' && currentSong && currentSong.teamSong;
-}
-
-// Load personal settings when opening a song
-function loadPersonalSettings(songId){
-  if(!isTeamMemberViewingTeamSong()){ personalTranspose = 0; personalCapo = 0; return; }
-  const p = getPersonalKey(songId);
-  personalTranspose = p.transpose || 0;
-  personalCapo      = p.capo || 0;
-}
-
-// Get effective transpose for rendering (team transpose + personal offset)
-function getEffectiveTranspose(){
-  return (currentTranspose + personalTranspose + 12) % 12;
-}
-
-// Update QS panel for member personal settings
-function refreshPersonalQS(){
-  if(!currentSong) return;
-  const memberSection = document.getElementById('qs-member-section');
-  const leaderSection = document.getElementById('qs-leader-transpose-section');
-  const isMember = isTeamMemberViewingTeamSong();
-
-  if(memberSection) memberSection.style.display = isMember ? '' : 'none';
-  if(leaderSection) leaderSection.style.display = isMember ? 'none' : '';
-
-  if(!isMember) return;
-
-  // Show team key
-  const teamKeyLabel = document.getElementById('qs-team-key-label');
-  if(teamKeyLabel){
-    const teamKey = normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')) + (currentSong.key.endsWith('m') ? 'm' : '');
-    teamKeyLabel.textContent = teamKey;
-  }
-
-  // Show personal key button
-  updatePersonalKeyBtn();
-
-  // Personal capo
-  const capoVal = document.getElementById('qs-personal-capo-val');
-  if(capoVal) capoVal.textContent = personalCapo;
-}
-
-function updatePersonalKeyBtn(){
-  const btn = document.getElementById('qs-personal-key-btn');
-  if(!btn || !currentSong) return;
-  const effectiveKey = normaliseNote(transposeChord(currentSong.key, getEffectiveTranspose()).replace('m','')) + (currentSong.key.endsWith('m') ? 'm' : '');
-  btn.textContent = effectiveKey;
-}
-
-// Wire personal settings buttons
-document.addEventListener('DOMContentLoaded', ()=>{
-  // Personal key button — open grid
-  const personalKeyBtn = document.getElementById('qs-personal-key-btn');
-  const personalKeyGrid = document.getElementById('qs-personal-key-grid');
-  if(personalKeyBtn && personalKeyGrid){
-    personalKeyBtn.addEventListener('click', e=>{
-      e.stopPropagation();
-      const isOpen = personalKeyGrid.style.display !== 'none';
-      personalKeyGrid.style.display = isOpen ? 'none' : 'block';
-      personalKeyBtn.style.background = isOpen ? 'transparent' : 'var(--accent)';
-      personalKeyBtn.style.color = isOpen ? 'var(--accent)' : '#0d0f14';
-      if(!isOpen){
-        makeKeySelector(personalKeyGrid,
-          () => normaliseNote(transposeChord(currentSong.key, getEffectiveTranspose()).replace('m','')),
-          (newKey) => {
-            // Calculate personal offset = desired key - team key
-            const gi = k=>{ const kk=k.replace('m',''); const si=SHARP_SCALE.indexOf(kk); return si!==-1?si:FLAT_SCALE.indexOf(kk); };
-            const teamDisplayKey = normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m',''));
-            personalTranspose = ((gi(newKey) - gi(teamDisplayKey)) % 12 + 12) % 12;
-            savePersonalKey(currentSong.id, personalTranspose, personalCapo);
-            updatePersonalKeyBtn();
-            renderSongView();
-            // Re-render grid with new highlight
-            makeKeySelector(personalKeyGrid,
-              () => normaliseNote(transposeChord(currentSong.key, getEffectiveTranspose()).replace('m','')),
-              ()=>{},
-              'var(--accent)', false
-            );
-          },
-          'var(--accent)', false
-        );
-      }
-    });
-    personalKeyGrid.addEventListener('click', e => e.stopPropagation());
-  }
-
-  // Personal semitone buttons
-  document.getElementById('personal-transpose-up').addEventListener('click', e=>{
-    e.stopPropagation();
-    personalTranspose = (personalTranspose + 1) % 12;
-    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
-    updatePersonalKeyBtn();
-    renderSongView();
-  });
-  document.getElementById('personal-transpose-down').addEventListener('click', e=>{
-    e.stopPropagation();
-    personalTranspose = ((personalTranspose - 1) + 12) % 12;
-    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
-    updatePersonalKeyBtn();
-    renderSongView();
-  });
-
-  // Personal capo
-  document.getElementById('qs-personal-capo-inc').addEventListener('click', e=>{
-    e.stopPropagation();
-    personalCapo = Math.min(personalCapo + 1, 11);
-    document.getElementById('qs-personal-capo-val').textContent = personalCapo;
-    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
-    renderSongView();
-  });
-  document.getElementById('qs-personal-capo-dec').addEventListener('click', e=>{
-    e.stopPropagation();
-    personalCapo = Math.max(personalCapo - 1, 0);
-    document.getElementById('qs-personal-capo-val').textContent = personalCapo;
-    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
-    renderSongView();
-  });
-
-  // Reset to team settings
-  document.getElementById('qs-personal-reset-btn').addEventListener('click', e=>{
-    e.stopPropagation();
-    personalTranspose = 0; personalCapo = 0;
-    clearPersonalKey(currentSong.id);
-    refreshPersonalQS();
-    renderSongView();
-    toast('Reset to team settings');
-  });
 });
 
 // ═══════════════════════════════════════════════════════
