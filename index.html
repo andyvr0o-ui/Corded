@@ -547,8 +547,9 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
   opacity:0;
   pointer-events:none;
 }
-/* fs-enter-btn hidden — fullscreen is always on in song view */
-#fs-enter-btn{display:none!important}
+/* Fullscreen button */
+#fs-enter-btn{font-size:17px;background:none;border:none;color:var(--text2);cursor:pointer;padding:6px 8px;border-radius:8px;transition:color var(--t)}
+#fs-enter-btn:hover{color:var(--text)}
 
 /* ── CAPO DROPDOWN ── */
 #capo-display{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;
@@ -3761,6 +3762,31 @@ function refreshQSCapo(){
   // Also keep legacy capo-display in sync
   document.getElementById('capo-display').textContent = capo > 0 ? capo + ' ▾' : '0 ▾';
 }
+
+// ── Fullscreen toggle ──
+(function(){
+  const btn = document.getElementById('fs-enter-btn');
+  if(!btn) return;
+
+  function updateIcon(){
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    btn.textContent = isFs ? '✕' : '⛶';
+    btn.title = isFs ? 'Exit fullscreen' : 'Fullscreen';
+  }
+
+  btn.addEventListener('click', ()=>{
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if(isFs){
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      const el = document.getElementById('song-view') || document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }
+  });
+
+  document.addEventListener('fullscreenchange', updateIcon);
+  document.addEventListener('webkitfullscreenchange', updateIcon);
+})();
 
 document.getElementById('qs-btn').addEventListener('click', e=>{
   e.stopPropagation();
