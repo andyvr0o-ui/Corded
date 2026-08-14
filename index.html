@@ -693,7 +693,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <div id="song-view-header">
         <button class="icon-btn" id="back-btn">←</button>
         <button id="song-title-btn" title="Song options">
-          <div id="sv-title"></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="sv-title"></div>
+            <span id="sv-capo-badge" style="display:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);background:rgba(244,162,97,.15);border:1px solid rgba(244,162,97,.3);border-radius:6px;padding:2px 7px;flex-shrink:0"></span>
+          </div>
           <div id="sv-artist"></div>
         </button>
         <button class="icon-btn" id="fs-enter-btn" title="Presentation mode">⛶</button>
@@ -1403,6 +1406,12 @@ function renderSongView(){
   document.getElementById('key-display').textContent = soundingKey + (capo ? ' 𝄪' + capo : '') + ' ▾';
   document.getElementById('capo-display').textContent = capo > 0 ? capo + ' ▾' : '0 ▾';
   document.getElementById('capo-display').classList.toggle('active', capo > 0);
+  // Show capo badge in header when capo > 0
+  const capoBadge = document.getElementById('sv-capo-badge');
+  if(capoBadge){
+    capoBadge.style.display = capo > 0 ? '' : 'none';
+    capoBadge.textContent = 'Capo ' + capo;
+  }
   const lyricsEl=document.getElementById('song-lyrics');
   lyricsEl.style.fontSize=fontSize+'px';
   lyricsEl.classList.toggle('two-col', twoColMode);
