@@ -4897,7 +4897,7 @@ async function teamPush(){
 function scheduleTeamPush(){
   if(teamRole !== 'leader' || !teamCode) return;
   clearTimeout(teamSyncTimer);
-  teamSyncTimer = setTimeout(()=> teamPush(), 10000);
+  teamSyncTimer = setTimeout(()=> teamPush(), 5000);
 }
 
 // ── Create team ──
