@@ -2123,7 +2123,7 @@ function renderSetlist(){
   });
   renderLibrary();
 }
-document.getElementById('setlist-name').addEventListener('input',e=>{const sl=activeSetlist();if(sl){sl.name=e.target.value;save();document.getElementById('sl-picker-name').textContent=e.target.value||'Untitled';}});
+document.getElementById('setlist-name').addEventListener('input',e=>{const sl=activeSetlist();if(sl){sl.name=e.target.value;save();document.getElementById('sl-picker-name').textContent=(sl.teamSetlist?'👥 ':'🔒 ')+(e.target.value||'Untitled');}});
 document.getElementById('delete-setlist-btn').addEventListener('click',()=>{
   const sl=activeSetlist();if(!sl)return;
   appConfirm(`Delete "${sl.name}"?`, ()=>{
@@ -3992,14 +3992,51 @@ document.getElementById('sel-delete').addEventListener('click',()=>{
   }, {title:'Delete Songs', okLabel:'Delete', okDanger:true});
 });
 
-// Create new setlist
+// Create new setlist — if in a team, ask whether team or private
 function createNewSetlist(){
-  const name='Service '+(setlists.length+1);
-  setlists.push({id:Date.now().toString(),name,songs:[]});
-  activeSetlistIdx=setlists.length-1;
-  save();renderSetlist();renderLibrary();toast('New setlist created');
+  if(teamCode && teamRole === 'leader'){
+    // Leader can create team or private setlists
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:300px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">New Setlist</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Create a team setlist (shared with everyone) or a private one just for you.</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button id="sl-team-btn" style="padding:12px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">👥 Team Setlist</button>
+          <button id="sl-private-btn" style="padding:12px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">🔒 Private Setlist</button>
+          <button id="sl-cancel-btn" style="padding:10px;border-radius:10px;background:transparent;border:none;color:var(--text3);font-family:'Nunito',sans-serif;font-size:13px;cursor:pointer">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#sl-team-btn').addEventListener('click', ()=>{
+      overlay.remove(); doCreateSetlist(true);
+    });
+    overlay.querySelector('#sl-private-btn').addEventListener('click', ()=>{
+      overlay.remove(); doCreateSetlist(false);
+    });
+    overlay.querySelector('#sl-cancel-btn').addEventListener('click', ()=> overlay.remove());
+  } else {
+    // No team or member — always private
+    doCreateSetlist(false);
+  }
+}
+
+function doCreateSetlist(isTeam){
+  const teamSetlists    = setlists.filter(s => s.teamSetlist).length;
+  const privateSetlists = setlists.filter(s => !s.teamSetlist).length;
+  const num  = isTeam ? teamSetlists + 1 : privateSetlists + 1;
+  const name = isTeam ? 'Service ' + num : 'My Setlist ' + num;
+  const sl   = {id:Date.now().toString(), name, songs:[], teamSetlist: isTeam};
+  setlists.push(sl);
+  activeSetlistIdx = setlists.length - 1;
+  save();
+  renderSetlist();
+  renderLibrary();
+  toast(isTeam ? 'Team setlist created' : 'Private setlist created');
   closeSlPicker();
 }
+
 document.getElementById('add-setlist-fab').addEventListener('click', createNewSetlist);
 
 // Session picker dropdown
@@ -4017,7 +4054,7 @@ function openSlPicker(){
       </div>
       <div class="sl-row-inner">
         <button class="sl-picker-item" data-idx="${i}" style="flex:1;border:none">
-          ${esc(s.name)}
+          ${s.teamSetlist ? '👥 ' : '🔒 '}${esc(s.name)}
           <span class="sl-count">${s.songs.length} song${s.songs.length!==1?'s':''}</span>
         </button>
         <button class="sl-rename-btn" data-idx="${i}" title="Rename">✎</button>
@@ -4545,14 +4582,12 @@ async function teamPull(force=false){
     const privateSongs = songs.filter(s => !s.teamSong);
     songs = [...data.songs.map(s => ({...s, teamSong:true})), ...privateSongs];
 
-    // Merge team setlists — keep local private setlists, add/replace team setlists
-    if(data.setlists && data.setlists.length){
-      const localPrivateSetlists = setlists.filter(sl => !sl.teamSetlist);
-      const teamSetlists = data.setlists.map(sl => ({...sl, teamSetlist:true}));
-      setlists = [...teamSetlists, ...localPrivateSetlists];
-      if(!setlists.length) setlists = [{id:'1',name:'Sunday Morning',songs:[]}];
-      activeSetlistIdx = 0;
-    }
+    // Replace team setlists completely — keep private setlists untouched
+    const privateSetlists = setlists.filter(sl => !sl.teamSetlist);
+    const incomingTeamSetlists = (data.setlists || []).map(sl => ({...sl, teamSetlist:true}));
+    setlists = [...incomingTeamSetlists, ...privateSetlists];
+    if(!setlists.length) setlists = [{id:'1',name:'Sunday Morning',songs:[]}];
+    activeSetlistIdx = 0;
 
     save();
     renderLibrary();
@@ -4572,7 +4607,7 @@ async function teamPush(){
   if(!teamCode || teamRole !== 'leader') return;
   try {
     const teamSongs    = songs.filter(s => s.teamSong);
-    const teamSetlists = setlists.filter(sl => sl.teamSetlist || !sl.teamSetlist); // push all setlists
+    const teamSetlists = setlists.filter(sl => sl.teamSetlist); // only push team setlists
     const res = await fetch(`${TEAM_API}/team/${teamCode}/library`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Leader-Token': teamToken },
