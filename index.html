@@ -2740,9 +2740,14 @@ function openModal(editId){
   // Set master key and panel labels
   const mkLabel = document.getElementById('master-key-dropdown-label');
   if(mkLabel) mkLabel.textContent = selectedKey;
+  // Panel label shows the effective sounding key (master key + any transpose)
   const panelLabel = document.getElementById('keys-panel-label');
-  if(panelLabel) panelLabel.textContent = selectedKey.replace('m','') + (selectedKey.endsWith('m') ? 'm' : '');
-  // key-dropdown-label removed — panel label updated via buildKeyDropdown
+  if(panelLabel){
+    const song = editId ? songs.find(s=>s.id===editId) : null;
+    const transpose = song ? (song.transpose||0) : 0;
+    const effectiveKey = normaliseNote(transposeChord(selectedKey, transpose).replace('m','')) + (selectedKey.endsWith('m')?'m':'');
+    panelLabel.textContent = effectiveKey;
+  }
   closeAllKeyDropdowns();
   cbReset();
   renderChordBar();
@@ -3141,9 +3146,9 @@ function buildKeyDropdown(){
         editorSnapshot();
       }
       selectedKey = newKey + (selectedKey.endsWith('m') ? 'm' : '');
-      // Update panel label
+      // Update panel label to show the new effective key
       const pLabel = document.getElementById('keys-panel-label');
-      if(pLabel) pLabel.textContent = selectedKey.replace('m','') + (selectedKey.endsWith('m') ? 'm' : '');
+      if(pLabel) pLabel.textContent = newKey + (selectedKey.endsWith('m') ? 'm' : '');
       if(editingId){
         const idx=songs.findIndex(s=>s.id===editingId);
         if(idx!==-1){ songs[idx].key=selectedKey; if(currentSong&&currentSong.id===editingId) currentSong.key=selectedKey; }
@@ -3175,8 +3180,9 @@ function buildMasterKeyDropdown(){
       label.textContent = newKey;
       // Also update transpose and panel labels
       // key-dropdown-label removed — panel label updated separately
-      const pLabel = document.getElementById('keys-panel-label');
-      if(pLabel) pLabel.textContent = newKey.replace('m','') + (newKey.endsWith('m') ? 'm' : '');
+      // After master key change, transpose resets to 0 so effective key = new master key
+      const pLabel2 = document.getElementById('keys-panel-label');
+      if(pLabel2) pLabel2.textContent = newKey.replace('m','') + (newKey.endsWith('m') ? 'm' : '');
       // Update song key without transposing notes
       if(editingId){
         const idx = songs.findIndex(s=>s.id===editingId);
