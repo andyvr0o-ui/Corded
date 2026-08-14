@@ -794,6 +794,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div style="display:flex;flex-direction:column;gap:7px">
       <button class="drawer-btn" id="team-create-btn">✦ Create Team</button>
       <button class="drawer-btn" id="team-join-btn">→ Join Team</button>
+      <button class="drawer-btn" id="team-reconnect-btn" style="color:var(--text3)">↺ Reconnect as Leader</button>
       <button class="drawer-btn" id="team-sync-btn" style="display:none">↕ Sync Team Library</button>
       <button class="drawer-btn" id="team-requests-btn" style="display:none;position:relative">
         ✓ Review Requests <span id="team-requests-badge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
@@ -4640,30 +4641,79 @@ function scheduleTeamPush(){
 }
 
 // ── Create team ──
-async function teamCreate(){
-  try {
-    updateTeamUI();
-    const res = await fetch(`${TEAM_API}/team/create`, { method:'POST' });
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
-    teamCode  = data.code;
-    teamRole  = 'leader';
-    teamToken = data.leaderToken;
-    saveTeamState();
-    // Mark all current songs as team songs
-    songs = songs.map(s => ({...s, teamSong: true}));
-    save();
-    updateTeamUI();
-    toast('Team created! Code: ' + teamCode);
-    // Show share prompt
-    appConfirm(
-      'Your team code is: ' + teamCode + '. Share this with your team members.',
-      ()=> { if(navigator.share) navigator.share({ title:'Corded Team Code', text:'Join my Corded team: ' + teamCode }); },
-      { title:'Team Created', okLabel:'Share Code' }
-    );
-  } catch(e){
-    toast('Failed to create team: ' + e.message);
-  }
+// ── Hash password using SHA-256 ──
+async function hashPassword(password){
+  const enc = new TextEncoder().encode(password);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function teamCreate(){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+      <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Create Team</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Choose a password — you'll use this to reconnect as leader from any device.</div>
+      <input id="tc-pass1" type="password" placeholder="Leader password"
+        style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;margin-bottom:10px;box-sizing:border-box;outline:none">
+      <input id="tc-pass2" type="password" placeholder="Confirm password"
+        style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;margin-bottom:16px;box-sizing:border-box;outline:none">
+      <div style="display:flex;gap:10px">
+        <button id="tc-cancel" style="flex:1;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+        <button id="tc-create" style="flex:1;padding:11px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Create</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#tc-cancel').addEventListener('click', ()=> overlay.remove());
+  overlay.querySelector('#tc-create').addEventListener('click', async ()=>{
+    const pass1 = overlay.querySelector('#tc-pass1').value;
+    const pass2 = overlay.querySelector('#tc-pass2').value;
+    if(!pass1){ toast('Enter a password'); return; }
+    if(pass1 !== pass2){ toast('Passwords do not match'); return; }
+    if(pass1.length < 4){ toast('Password must be at least 4 characters'); return; }
+    try {
+      const passHash = await hashPassword(pass1);
+      const res = await fetch(`${TEAM_API}/team/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passHash })
+      });
+      const data = await res.json();
+      if(data.error) throw new Error(data.error);
+      teamCode  = data.code;
+      teamRole  = 'leader';
+      teamToken = passHash;
+      saveTeamState();
+      songs = songs.map(s => ({...s, teamSong: true}));
+      save();
+      overlay.remove();
+      updateTeamUI();
+      // Show team code
+      const o2 = document.createElement('div');
+      o2.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+      o2.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+          <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Team Created! 🎉</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Share this code with your team. Use your password to reconnect as leader from any device.</div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Team Code</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--accent);letter-spacing:2px">${teamCode}</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button id="tc2-share" style="flex:1;padding:11px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Share Code</button>
+            <button id="tc2-done" style="flex:1;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Done</button>
+          </div>
+        </div>`;
+      document.body.appendChild(o2);
+      o2.querySelector('#tc2-share').addEventListener('click', ()=>{
+        if(navigator.share) navigator.share({ title:'Corded Team Code', text:'Join my Corded team: ' + teamCode });
+      });
+      o2.querySelector('#tc2-done').addEventListener('click', ()=> o2.remove());
+    } catch(e){
+      toast('Failed to create team: ' + e.message);
+    }
+  });
 }
 
 // ── Join team ──
@@ -4814,6 +4864,48 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(teamRole === 'leader') scheduleTeamPush();
   });
   document.getElementById('team-requests-btn').addEventListener('click', teamReviewRequests);
+  document.getElementById('team-reconnect-btn').addEventListener('click', ()=>{
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Reconnect as Leader</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Enter your team code and leader token to reconnect.</div>
+        <input id="rc-code-input" type="text" placeholder="Team code (e.g. GRACE-RIVER-492)"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;box-sizing:border-box;outline:none">
+        <input id="rc-token-input" type="password" placeholder="Leader password"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;margin-bottom:16px;box-sizing:border-box;outline:none">
+        <div style="display:flex;gap:10px">
+          <button id="rc-cancel-btn" style="flex:1;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+          <button id="rc-confirm-btn" style="flex:1;padding:11px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Reconnect</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#rc-cancel-btn').addEventListener('click', ()=> overlay.remove());
+    overlay.querySelector('#rc-confirm-btn').addEventListener('click', async ()=>{
+      const code = overlay.querySelector('#rc-code-input').value.trim().toUpperCase();
+      const pass = overlay.querySelector('#rc-token-input').value.trim();
+      if(!code || !pass){ toast('Enter both code and password'); return; }
+      try {
+        const passHash = await hashPassword(pass);
+        const res = await fetch(`${TEAM_API}/team/${code}/library`, {
+          headers: { 'X-Leader-Token': passHash }
+        });
+        if(!res.ok) throw new Error('Invalid code or password');
+        teamCode  = code;
+        teamRole  = 'leader';
+        teamToken = passHash;
+        saveTeamState();
+        overlay.remove();
+        updateTeamUI();
+        await teamPull(true);
+        toast('✓ Reconnected as leader');
+      } catch(e){
+        toast('Could not reconnect: ' + e.message);
+      }
+    });
+  });
+
   document.getElementById('team-leave-btn').addEventListener('click', ()=>{
     appConfirm('Leave the team? Your private songs are kept.', ()=>{
       // Keep private songs, remove team songs
