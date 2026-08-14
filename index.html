@@ -4527,25 +4527,30 @@ function updateTeamUI(){
 }
 
 // ── Pull team library from server ──
-async function teamPull(){
+async function teamPull(force=false){
   if(!teamCode) return;
   try {
     const res = await fetch(`${TEAM_API}/team/${teamCode}/library`);
+    if(!res.ok) throw new Error('Server error: ' + res.status);
     const data = await res.json();
-    if(!data.songs) return;
+    if(!data.songs || !Array.isArray(data.songs)) throw new Error('Invalid library data');
 
     const localVersion = parseInt(localStorage.getItem('cb_team_version') || '0');
-    if(data.version <= localVersion) return; // nothing new
+    if(!force && data.version <= localVersion){
+      toast('Already up to date');
+      return;
+    }
 
     // Merge team songs into local library — keep private songs, replace team songs
     const privateSongs = songs.filter(s => !s.teamSong);
-    songs = [...data.songs, ...privateSongs];
+    songs = [...data.songs.map(s => ({...s, teamSong:true})), ...privateSongs];
     save();
     renderLibrary();
     localStorage.setItem('cb_team_version', data.version.toString());
-    toast('Team library updated — ' + data.songs.length + ' songs');
+    toast('✓ Synced — ' + data.songs.length + ' team song' + (data.songs.length===1?'':'s'));
   } catch(e){
     console.error('Team pull error:', e);
+    toast('Sync failed: ' + e.message);
   }
 }
 
@@ -4648,7 +4653,7 @@ function teamJoinPrompt(){
       saveTeamState();
       overlay.remove();
       updateTeamUI();
-      await teamPull();
+      await teamPull(true); // force pull on first join
       toast('Joined team ' + code);
     } catch(e){
       toast('Could not join: ' + e.message);
@@ -4755,7 +4760,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   document.getElementById('team-join-btn').addEventListener('click', teamJoinPrompt);
   document.getElementById('team-sync-btn').addEventListener('click', async ()=>{
-    await teamPull();
+    toast('Syncing...');
+    await teamPull(true); // force pull regardless of version
     if(teamRole === 'leader') scheduleTeamPush();
   });
   document.getElementById('team-requests-btn').addEventListener('click', teamReviewRequests);
