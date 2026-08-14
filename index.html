@@ -3125,7 +3125,7 @@ function buildKeyDropdown(){
   makeKeySelector(grid,
     () => selectedKey.replace('m',''),
     (newKey) => {
-      const gi = k=>{ const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
+      const gi = k=>{ const kk=k.replace('m',''); const si=SHARP_SCALE.indexOf(kk); return si!==-1?si:FLAT_SCALE.indexOf(kk); };
       const steps = ((gi(newKey)-gi(selectedKey))%12+12)%12;
       if(steps !== 0){
         const ta = document.getElementById('form-lyrics');
@@ -3743,7 +3743,7 @@ function openQS(){
   }
 
   function setTransposeKey(newKey){
-    const gi = k => { const si=SHARP_SCALE.indexOf(k.replace('m','')); return si!==-1?si:FLAT_SCALE.indexOf(k.replace('m','')); };
+    const gi = k => { const kk=k.replace('m',''); const si=SHARP_SCALE.indexOf(kk); return si!==-1?si:FLAT_SCALE.indexOf(kk); };
     currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
     currentSong.transpose = currentTranspose;
     const idx = songs.findIndex(s=>s.id===currentSong.id);
@@ -3834,7 +3834,7 @@ function refreshQSKeyGrid(){
 
 function setQSTransposeKey(newKey){
   if(!currentSong) return;
-  const gi = k => { const si=SHARP_SCALE.indexOf(k); return si!==-1?si:FLAT_SCALE.indexOf(k); };
+  const gi = k => { const kk=k.replace('m',''); const si=SHARP_SCALE.indexOf(kk); return si!==-1?si:FLAT_SCALE.indexOf(kk); };
   currentTranspose = ((gi(newKey) - gi(currentSong.key)) % 12 + 12) % 12;
   currentSong.transpose = currentTranspose;
   const idx = songs.findIndex(s=>s.id===currentSong.id);
