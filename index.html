@@ -783,6 +783,25 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
   </div>
 
 
+  <!-- Team Sync -->
+  <div class="drawer-section">
+    <h3>Team</h3>
+    <div id="team-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">No team connected</div>
+    <div id="team-code-display" style="display:none;margin-bottom:8px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:4px" id="team-code-label"></div>
+      <div style="font-size:11px;color:var(--text3)" id="team-role-label"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <button class="drawer-btn" id="team-create-btn">✦ Create Team</button>
+      <button class="drawer-btn" id="team-join-btn">→ Join Team</button>
+      <button class="drawer-btn" id="team-sync-btn" style="display:none">↕ Sync Team Library</button>
+      <button class="drawer-btn" id="team-requests-btn" style="display:none;position:relative">
+        ✓ Review Requests <span id="team-requests-badge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
+      </button>
+      <button class="drawer-btn" id="team-leave-btn" style="display:none;color:var(--text3)">Leave Team</button>
+    </div>
+  </div>
+
   <!-- Google Drive Backup -->
   <div class="drawer-section">
     <h3>Google Drive Sync</h3>
@@ -1917,7 +1936,7 @@ function renderLibrary(){
         <div class="sel-tick">✓</div>
         <div class="song-thumb">${tagEmoji(s.tag)}</div>
         <div class="song-info">
-          <div class="song-title">${esc(s.title)}</div>
+          <div class="song-title">${esc(s.title)}${s.teamSong ? ' <span style="font-size:10px;color:var(--text3)">👥</span>' : ''}</div>
           <div class="song-meta">${esc(s.artist||'Unknown')} · <span class="tag ${s.tag}">${s.tag||''}</span></div>
         </div>
         <div class="song-key-badge">${s.key}</div>
@@ -2168,10 +2187,14 @@ function renderSongActionBtns(confirmDelete){
     });
     document.getElementById('sa-cancel-delete').addEventListener('click',()=>renderSongActionBtns(false));
   } else {
+    const showTeamRequest = teamCode && teamRole === 'member' && currentSong && !currentSong.teamSong;
+    const showTeamBadge   = currentSong && currentSong.teamSong;
     btns.innerHTML=`
       <button class="action-btn" id="sa-edit"><span class="action-btn-icon">✎</span>Edit song</button>
       <button class="action-btn" id="sa-rename"><span class="action-btn-icon">Aa</span>Rename</button>
       <button class="action-btn" id="sa-setlist"><span class="action-btn-icon">${inSL?'✓':'+'}</span>${inSL?'Remove from setlist':'Add to setlist'}</button>
+      ${showTeamRequest ? '<button class="action-btn" id="sa-team-request"><span class="action-btn-icon">👥</span>Request to add to team</button>' : ''}
+      ${showTeamBadge ? '<button class="action-btn" disabled style="opacity:.5"><span class="action-btn-icon">👥</span>Team song</button>' : ''}
       <button class="action-btn" id="sa-delete" style="color:var(--danger)"><span class="action-btn-icon">🗑</span>Delete song</button>
       <button class="action-btn" id="sa-close" style="justify-content:center;color:var(--text3)">Cancel</button>
     `;
@@ -2185,6 +2208,12 @@ function renderSongActionBtns(confirmDelete){
       else{sl.songs.push(currentSong.id);toast('Added to setlist!');}
       save();renderSongView();renderLibrary();renderSetlist();closeSongActions();
     });
+    if(showTeamRequest){
+      document.getElementById('sa-team-request').addEventListener('click',()=>{
+        closeSongActions();
+        requestAddToTeam(currentSong);
+      });
+    }
     document.getElementById('sa-delete').addEventListener('click',()=>renderSongActionBtns(true));
     document.getElementById('sa-close').addEventListener('click',closeSongActions);
   }
@@ -4439,6 +4468,315 @@ window.addEventListener('load', ()=>{
   const params = new URLSearchParams(window.location.search);
   const ugUrl = params.get('ugurl');
   if(ugUrl) setTimeout(()=>handleUGImport(ugUrl), 1000);
+});
+
+// ═══════════════════════════════════════════════════════
+// TEAM SYNC
+// ═══════════════════════════════════════════════════════
+const TEAM_API = 'https://corded-teams.andyvr0o.workers.dev';
+
+let teamCode        = localStorage.getItem('cb_team_code') || null;
+let teamRole        = localStorage.getItem('cb_team_role') || null;  // 'leader' | 'member'
+let teamToken       = localStorage.getItem('cb_team_token') || null;
+let teamSyncTimer   = null;
+let teamPushPending = false;
+
+function saveTeamState(){
+  if(teamCode)  localStorage.setItem('cb_team_code',  teamCode);
+  if(teamRole)  localStorage.setItem('cb_team_role',  teamRole);
+  if(teamToken) localStorage.setItem('cb_team_token', teamToken);
+}
+
+function clearTeamState(){
+  teamCode = teamRole = teamToken = null;
+  localStorage.removeItem('cb_team_code');
+  localStorage.removeItem('cb_team_role');
+  localStorage.removeItem('cb_team_token');
+}
+
+function updateTeamUI(){
+  const statusEl    = document.getElementById('team-status');
+  const codeDisplay = document.getElementById('team-code-display');
+  const codeLabel   = document.getElementById('team-code-label');
+  const roleLabel   = document.getElementById('team-role-label');
+  const createBtn   = document.getElementById('team-create-btn');
+  const joinBtn     = document.getElementById('team-join-btn');
+  const syncBtn     = document.getElementById('team-sync-btn');
+  const requestsBtn = document.getElementById('team-requests-btn');
+  const leaveBtn    = document.getElementById('team-leave-btn');
+
+  if(teamCode){
+    statusEl.textContent = '✓ Connected';
+    codeDisplay.style.display = 'block';
+    codeLabel.textContent = teamCode;
+    roleLabel.textContent = teamRole === 'leader' ? '★ Team Leader' : '○ Team Member';
+    createBtn.style.display = 'none';
+    joinBtn.style.display   = 'none';
+    syncBtn.style.display   = '';
+    requestsBtn.style.display = teamRole === 'leader' ? '' : 'none';
+    leaveBtn.style.display  = '';
+  } else {
+    statusEl.textContent = 'No team connected';
+    codeDisplay.style.display = 'none';
+    createBtn.style.display = '';
+    joinBtn.style.display   = '';
+    syncBtn.style.display   = 'none';
+    requestsBtn.style.display = 'none';
+    leaveBtn.style.display  = 'none';
+  }
+}
+
+// ── Pull team library from server ──
+async function teamPull(){
+  if(!teamCode) return;
+  try {
+    const res = await fetch(`${TEAM_API}/team/${teamCode}/library`);
+    const data = await res.json();
+    if(!data.songs) return;
+
+    const localVersion = parseInt(localStorage.getItem('cb_team_version') || '0');
+    if(data.version <= localVersion) return; // nothing new
+
+    // Merge team songs into local library — keep private songs, replace team songs
+    const privateSongs = songs.filter(s => !s.teamSong);
+    songs = [...data.songs, ...privateSongs];
+    save();
+    renderLibrary();
+    localStorage.setItem('cb_team_version', data.version.toString());
+    toast('Team library updated — ' + data.songs.length + ' songs');
+  } catch(e){
+    console.error('Team pull error:', e);
+  }
+}
+
+// ── Push team library to server (leader only) ──
+async function teamPush(){
+  if(!teamCode || teamRole !== 'leader') return;
+  try {
+    const teamSongs = songs.filter(s => s.teamSong);
+    const res = await fetch(`${TEAM_API}/team/${teamCode}/library`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Leader-Token': teamToken },
+      body: JSON.stringify({ songs: teamSongs, version: Date.now() })
+    });
+    const data = await res.json();
+    if(data.ok){
+      localStorage.setItem('cb_team_version', data.version.toString());
+      toast('✓ Team library pushed');
+    }
+  } catch(e){
+    toast('Team push failed: ' + e.message);
+  }
+  teamPushPending = false;
+}
+
+// ── Schedule push after 10s inactivity ──
+function scheduleTeamPush(){
+  if(teamRole !== 'leader' || !teamCode) return;
+  clearTimeout(teamSyncTimer);
+  teamPushPending = true;
+  teamSyncTimer = setTimeout(()=>{
+    if(!teamPushPending) return;
+    appConfirm(
+      'Push your changes to the team library?',
+      ()=> teamPush(),
+      { title:'Push to Team', okLabel:'Push Now' }
+    );
+  }, 10000);
+}
+
+// ── Create team ──
+async function teamCreate(){
+  try {
+    updateTeamUI();
+    const res = await fetch(`${TEAM_API}/team/create`, { method:'POST' });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    teamCode  = data.code;
+    teamRole  = 'leader';
+    teamToken = data.leaderToken;
+    saveTeamState();
+    // Mark all current songs as team songs
+    songs = songs.map(s => ({...s, teamSong: true}));
+    save();
+    updateTeamUI();
+    toast('Team created! Code: ' + teamCode);
+    // Show share prompt
+    appConfirm(
+      'Your team code is: ' + teamCode + '. Share this with your team members.',
+      ()=> { if(navigator.share) navigator.share({ title:'Corded Team Code', text:'Join my Corded team: ' + teamCode }); },
+      { title:'Team Created', okLabel:'Share Code' }
+    );
+  } catch(e){
+    toast('Failed to create team: ' + e.message);
+  }
+}
+
+// ── Join team ──
+function teamJoinPrompt(){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:88%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+      <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Join a Team</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Enter the team code from your worship leader:</div>
+      <input id="team-join-input" type="text" placeholder="e.g. GRACE-RIVER-492"
+        style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;box-sizing:border-box;outline:none">
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="this.closest('div[style]').remove()" style="padding:10px 20px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+        <button id="team-join-confirm" style="padding:10px 20px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Join</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector('#team-join-input');
+  input.focus();
+  overlay.querySelector('#team-join-confirm').addEventListener('click', async ()=>{
+    const code = input.value.trim().toUpperCase();
+    if(!code){ toast('Enter a team code'); return; }
+    try {
+      const res = await fetch(`${TEAM_API}/team/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+      if(data.error) throw new Error(data.error);
+      teamCode  = code;
+      teamRole  = 'member';
+      teamToken = null;
+      saveTeamState();
+      overlay.remove();
+      updateTeamUI();
+      await teamPull();
+      toast('Joined team ' + code);
+    } catch(e){
+      toast('Could not join: ' + e.message);
+    }
+  });
+}
+
+// ── Request to add song to team ──
+async function requestAddToTeam(song){
+  if(!teamCode || teamRole !== 'member'){ toast('Join a team first'); return; }
+  try {
+    const res = await fetch(`${TEAM_API}/team/${teamCode}/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ song })
+    });
+    const data = await res.json();
+    if(data.ok) toast('Request sent to team leader');
+    else throw new Error(data.error);
+  } catch(e){
+    toast('Request failed: ' + e.message);
+  }
+}
+
+// ── Leader: review pending requests ──
+async function teamReviewRequests(){
+  if(!teamCode || teamRole !== 'leader') return;
+  try {
+    const res = await fetch(`${TEAM_API}/team/${teamCode}/requests`, {
+      headers: { 'X-Leader-Token': teamToken }
+    });
+    const data = await res.json();
+    const pending = data.requests || [];
+
+    const badge = document.getElementById('team-requests-badge');
+    if(badge){ badge.textContent = pending.length; badge.style.display = pending.length ? '' : 'none'; }
+
+    if(!pending.length){ toast('No pending requests'); return; }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;max-width:360px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px">Pending Requests (${pending.length})</div>
+        <div id="requests-list"></div>
+        <button onclick="this.closest('div[style]').remove()" style="margin-top:16px;width:100%;padding:10px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Close</button>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const list = overlay.querySelector('#requests-list');
+    pending.forEach(req => {
+      const item = document.createElement('div');
+      item.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px';
+      item.innerHTML = `
+        <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:2px">${esc(req.song.title)}</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px">${esc(req.song.artist||'')} · Key: ${esc(req.song.key||'C')}</div>
+        <div style="display:flex;gap:8px">
+          <button data-id="${req.id}" data-action="approve" style="flex:1;padding:8px;border-radius:8px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">✓ Approve</button>
+          <button data-id="${req.id}" data-action="reject" style="flex:1;padding:8px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✕ Reject</button>
+        </div>`;
+      list.appendChild(item);
+    });
+
+    list.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-action]');
+      if(!btn) return;
+      const { id, action } = btn.dataset;
+      try {
+        await fetch(`${TEAM_API}/team/${teamCode}/request/${id}/${action}`, {
+          method: 'POST',
+          headers: { 'X-Leader-Token': teamToken }
+        });
+        btn.closest('div[style]').remove();
+        if(action === 'approve'){
+          await teamPull();
+          toast('Song approved and added to team library');
+        } else {
+          toast('Request rejected');
+        }
+        teamReviewRequests();
+      } catch(err){ toast('Action failed: ' + err.message); }
+    });
+  } catch(e){
+    toast('Failed to load requests: ' + e.message);
+  }
+}
+
+// ── Init team on load ──
+function initTeam(){
+  updateTeamUI();
+  if(teamCode){
+    // Pull latest on open
+    setTimeout(teamPull, 2000);
+    // Check pending requests if leader
+    if(teamRole === 'leader') setTimeout(teamReviewRequests, 3000);
+  }
+}
+
+// ── Wire team buttons ──
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('team-create-btn').addEventListener('click', ()=>{
+    appConfirm('Create a new team? Your current songs will become team songs.',
+      teamCreate, { title:'Create Team', okLabel:'Create' });
+  });
+  document.getElementById('team-join-btn').addEventListener('click', teamJoinPrompt);
+  document.getElementById('team-sync-btn').addEventListener('click', async ()=>{
+    await teamPull();
+    if(teamRole === 'leader') scheduleTeamPush();
+  });
+  document.getElementById('team-requests-btn').addEventListener('click', teamReviewRequests);
+  document.getElementById('team-leave-btn').addEventListener('click', ()=>{
+    appConfirm('Leave the team? Your private songs are kept.', ()=>{
+      // Keep private songs, remove team songs
+      songs = songs.filter(s => !s.teamSong);
+      clearTeamState();
+      save();
+      renderLibrary();
+      updateTeamUI();
+      toast('Left team');
+    }, { title:'Leave Team', okLabel:'Leave', okDanger:true });
+  });
+});
+
+window.addEventListener('load', initTeam);
+
+// Hook into save to schedule team push
+document.addEventListener('corded-saved', ()=>{
+  if(teamRole === 'leader') scheduleTeamPush();
 });
 
 // ═══════════════════════════════════════════════════════
