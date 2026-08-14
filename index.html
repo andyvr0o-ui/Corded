@@ -3740,12 +3740,15 @@ function openQS(){
   }
 
   function updateTransposeBtn(){
-    tBtn.textContent = getTransposeKey().replace('m','') + (currentSong.key.endsWith('m') ? 'm' : '');
+    // Always get the live button from DOM (clone may have replaced original)
+    const liveBtn = document.getElementById('qs-transpose-key-btn');
+    if(!liveBtn) return;
+    liveBtn.textContent = getTransposeKey().replace('m','') + (currentSong.key.endsWith('m') ? 'm' : '');
     // Filled when open, outline when closed
     const isOpen = tGrid.style.display !== 'none';
-    tBtn.style.background = isOpen ? 'var(--chord)' : 'transparent';
-    tBtn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
-    tBtn.style.border = '2px solid var(--chord)';
+    liveBtn.style.background = isOpen ? 'var(--chord)' : 'transparent';
+    liveBtn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
+    liveBtn.style.border = '2px solid var(--chord)';
   }
 
   function setTransposeKey(newKey){
