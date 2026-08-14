@@ -4544,10 +4544,23 @@ async function teamPull(force=false){
     // Merge team songs into local library — keep private songs, replace team songs
     const privateSongs = songs.filter(s => !s.teamSong);
     songs = [...data.songs.map(s => ({...s, teamSong:true})), ...privateSongs];
+
+    // Merge team setlists — keep local private setlists, add/replace team setlists
+    if(data.setlists && data.setlists.length){
+      const localPrivateSetlists = setlists.filter(sl => !sl.teamSetlist);
+      const teamSetlists = data.setlists.map(sl => ({...sl, teamSetlist:true}));
+      setlists = [...teamSetlists, ...localPrivateSetlists];
+      if(!setlists.length) setlists = [{id:'1',name:'Sunday Morning',songs:[]}];
+      activeSetlistIdx = 0;
+    }
+
     save();
     renderLibrary();
+    renderSetlist();
     localStorage.setItem('cb_team_version', data.version.toString());
-    toast('✓ Synced — ' + data.songs.length + ' team song' + (data.songs.length===1?'':'s'));
+    const songCount = data.songs.length;
+    const slCount   = data.setlists ? data.setlists.length : 0;
+    toast('✓ Synced — ' + songCount + ' song' + (songCount===1?'':'s') + ', ' + slCount + ' setlist' + (slCount===1?'':'s'));
   } catch(e){
     console.error('Team pull error:', e);
     toast('Sync failed: ' + e.message);
@@ -4558,11 +4571,12 @@ async function teamPull(force=false){
 async function teamPush(){
   if(!teamCode || teamRole !== 'leader') return;
   try {
-    const teamSongs = songs.filter(s => s.teamSong);
+    const teamSongs    = songs.filter(s => s.teamSong);
+    const teamSetlists = setlists.filter(sl => sl.teamSetlist || !sl.teamSetlist); // push all setlists
     const res = await fetch(`${TEAM_API}/team/${teamCode}/library`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Leader-Token': teamToken },
-      body: JSON.stringify({ songs: teamSongs, version: Date.now() })
+      body: JSON.stringify({ songs: teamSongs, setlists: teamSetlists, version: Date.now() })
     });
     const data = await res.json();
     if(data.ok){
