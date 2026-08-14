@@ -1019,7 +1019,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div style="font-size:28px;margin-bottom:10px">♪</div>
     <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:10px">Enjoying Corded?</div>
     <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:22px">Corded is free and made with care for worship teams by a single developer. If it's been a blessing, consider supporting its continued development with a small donation.</div>
-    <a id="donate-paypal-btn" href="https://paypal.me/avrpiano" target="_blank" style="display:block;padding:12px 20px;border-radius:12px;background:var(--accent);color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:10px">☕ Support via PayPal</a>
+    <a id="donate-paypal-btn" href="https://ko-fi.com/avrbuilds" target="_blank" style="display:block;padding:12px 20px;border-radius:12px;background:var(--accent);color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:10px">☕ Support on Ko-fi</a>
     <button id="donate-later-btn" style="width:100%;padding:10px 20px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Maybe Later</button>
     <button id="donate-never-btn" style="display:none;width:100%;padding:8px 20px;border-radius:12px;background:transparent;border:none;color:var(--text3);font-family:'Nunito',sans-serif;font-size:12px;cursor:pointer;margin-top:4px">Don't show again</button>
   </div>
@@ -4447,7 +4447,7 @@ function gdriveSaveToken(token){
   gdriveToken = token;
   localStorage.setItem(GDRIVE_LS_KEY, JSON.stringify({
     token,
-    expiry: Date.now() + 55 * 60 * 1000 // 55 min
+    expiry: Date.now() + 50 * 60 * 1000 // 50 min (tokens last 60 min)
   }));
 }
 
@@ -4476,10 +4476,12 @@ function gdriveSignIn(){
     updateGdriveStatus('Opening Google sign-in...', false);
     window.Android.signInWithGoogle();
   } else {
-    // Running in browser — fall back to manual OAuth URL
+    // Running in browser — use web client ID for OAuth
+    const WEB_CLIENT_ID = '849890350871-o69b90degvfgan88ghgtdu9kidg0knou.apps.googleusercontent.com';
+    const redirectUri = window.location.origin + '/';
     const params = new URLSearchParams({
-      client_id: GDRIVE_CLIENT_ID,
-      redirect_uri: window.location.origin + window.location.pathname,
+      client_id: WEB_CLIENT_ID,
+      redirect_uri: redirectUri,
       response_type: 'token',
       scope: GDRIVE_SCOPES,
       include_granted_scopes: 'true',
@@ -4624,7 +4626,17 @@ function initGdrive(){
     // Silently sync on open
     setTimeout(gdriveSyncNow, 1500);
   } else {
-    updateGdriveStatus('Not connected', false);
+    // No valid token — if on Android, try silent re-auth
+    if(window.Android && window.Android.signInWithGoogle){
+      updateGdriveStatus('Reconnecting...', false);
+      // Android will call onCordedOAuthToken if it succeeds
+      // Give it 3 seconds then show not connected if no token arrives
+      setTimeout(()=>{
+        if(!gdriveToken) updateGdriveStatus('Not connected', false);
+      }, 3000);
+    } else {
+      updateGdriveStatus('Not connected', false);
+    }
   }
 }
 
@@ -4640,6 +4652,22 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }, {title:'Disconnect Drive', okLabel:'Disconnect', okDanger:true});
   });
 });
+
+// Handle OAuth token returned in URL hash (browser flow)
+(function(){
+  const hash = window.location.hash;
+  if(hash && hash.includes('access_token')){
+    const params = new URLSearchParams(hash.slice(1));
+    const token = params.get('access_token');
+    if(token){
+      // Clean URL then store token
+      history.replaceState(null,'',window.location.pathname);
+      gdriveSaveToken(token);
+      updateGdriveStatus('✓ Connected — syncing...', true);
+      setTimeout(gdriveSyncNow, 500);
+    }
+  }
+})();
 
 window.addEventListener('load', initGdrive);
 
