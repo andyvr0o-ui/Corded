@@ -763,9 +763,21 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <div><div class="drawer-label">Chord Notation</div><div class="drawer-sub">Sharp or flat</div></div>
       <button class="toolbar-chip" id="toggle-notation" style="font-family:'JetBrains Mono';font-size:13px">♯ Sharp</button>
     </div>
+    <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div><div class="drawer-label">Brightness</div><div class="drawer-sub">Drag to dim for dark venues</div></div>
+        <span id="dim-value" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">100%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:14px">🌑</span>
+        <input type="range" id="dim-slider" min="10" max="100" value="100"
+          style="flex:1;height:4px;accent-color:var(--chord);cursor:pointer">
+        <span style="font-size:14px">☀️</span>
+      </div>
+    </div>
     <div class="drawer-row">
-      <div><div class="drawer-label">Night Dimmer</div><div class="drawer-sub">For dark venues</div></div>
-      <button class="toggle" id="toggle-dim"></button>
+      <div><div class="drawer-label">Full Screen</div><div class="drawer-sub">Hide browser controls</div></div>
+      <button class="toggle" id="drawer-fullscreen-toggle"></button>
     </div>
   </div>
 
@@ -825,7 +837,13 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       <button class="drawer-btn" id="clear-btn" style="color:var(--danger);border-color:rgba(230,57,70,.3)">🗑 Clear Library</button>
     </div>
   </div>
-  <div style="padding:14px 16px;font-size:11px;color:var(--text3);text-align:center">Corded v1.2</div>
+  <div style="padding:14px 16px;border-top:1px solid var(--border)">
+    <a href="https://ko-fi.com/avrbuilds" target="_blank"
+      style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);text-decoration:none;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;transition:color .2s">
+      ☕ <span>Support Corded on Ko-fi</span>
+    </a>
+    <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">Corded v1.2 · Made with care by AVR Builds</div>
+  </div>
 </div>
 
 <!-- SONG EDITOR MODAL -->
@@ -1033,6 +1051,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
 <div id="chord-tooltip"><div class="ct-name" id="tt-chord"></div><div class="ct-notes" id="tt-notes"></div></div>
 <div id="toast"></div>
+<div id="dim-overlay" style="display:none;position:fixed;inset:0;z-index:8000;background:#000;opacity:0;pointer-events:none;transition:opacity .2s"></div>
 
 <!-- Donate popup -->
 <div id="donate-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
@@ -2283,7 +2302,38 @@ document.getElementById('speed-dec').addEventListener('click',()=>{scrollSpeed=M
 document.getElementById('font-size-val').textContent=fontSize;
 document.getElementById('speed-val').textContent=scrollSpeed;
 
-document.getElementById('toggle-dim').addEventListener('click',function(){this.classList.toggle('on');document.body.style.filter=this.classList.contains('on')?'brightness(0.35)':'';});
+// ── Brightness slider ──
+(function(){
+  const slider  = document.getElementById('dim-slider');
+  const overlay = document.getElementById('dim-overlay');
+  const label   = document.getElementById('dim-value');
+  if(!slider) return;
+
+  // Restore saved brightness
+  const saved = parseInt(localStorage.getItem('cb_brightness') || '100');
+  slider.value = saved;
+  applyBrightness(saved);
+
+  slider.addEventListener('input', ()=>{
+    const val = parseInt(slider.value);
+    applyBrightness(val);
+    localStorage.setItem('cb_brightness', val);
+  });
+
+  function applyBrightness(val){
+    if(label) label.textContent = val + '%';
+    if(overlay){
+      const dimAmount = (100 - val) / 100 * 0.85; // max 85% dark
+      if(dimAmount > 0){
+        overlay.style.display = 'block';
+        overlay.style.opacity = dimAmount;
+      } else {
+        overlay.style.display = 'none';
+        overlay.style.opacity = 0;
+      }
+    }
+  }
+})();
 document.getElementById('toggle-notation').addEventListener('click',function(){useFlats=!useFlats;localStorage.setItem('cb_notation_manual','1');this.textContent=useFlats?'♭ Flat':'♯ Sharp';if(currentSong)renderSongView();});
 document.getElementById('export-btn').addEventListener('click',()=>{
   const data = { songs, setlists, version: Date.now(), exported: new Date().toISOString() };
@@ -3795,27 +3845,38 @@ function refreshQSCapo(){
 
 // ── Fullscreen toggle ──
 (function(){
-  const btn = document.getElementById('fs-enter-btn');
-  if(!btn) return;
+  const btn        = document.getElementById('fs-enter-btn');
+  const drawerBtn  = document.getElementById('drawer-fullscreen-toggle');
 
-  function updateIcon(){
-    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    btn.textContent = isFs ? '✕' : '⛶';
-    btn.title = isFs ? 'Exit fullscreen' : 'Fullscreen';
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
   }
 
-  btn.addEventListener('click', ()=>{
-    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    if(isFs){
-      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-    } else {
-      const el = document.getElementById('song-view') || document.documentElement;
-      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-    }
-  });
+  function enterFullscreen(){
+    const el = document.documentElement;
+    (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+  }
 
-  document.addEventListener('fullscreenchange', updateIcon);
-  document.addEventListener('webkitfullscreenchange', updateIcon);
+  function exitFullscreen(){
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  }
+
+  function updateAll(){
+    const fs = isFullscreen();
+    if(btn){ btn.textContent = fs ? '✕' : '⛶'; btn.title = fs ? 'Exit fullscreen' : 'Fullscreen'; }
+    if(drawerBtn) drawerBtn.classList.toggle('on', fs);
+  }
+
+  if(btn){
+    btn.addEventListener('click', ()=> isFullscreen() ? exitFullscreen() : enterFullscreen());
+  }
+
+  if(drawerBtn){
+    drawerBtn.addEventListener('click', ()=> isFullscreen() ? exitFullscreen() : enterFullscreen());
+  }
+
+  document.addEventListener('fullscreenchange', updateAll);
+  document.addEventListener('webkitfullscreenchange', updateAll);
 })();
 
 document.getElementById('qs-btn').addEventListener('click', e=>{
