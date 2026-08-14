@@ -4705,15 +4705,7 @@ async function teamPush(){
 function scheduleTeamPush(){
   if(teamRole !== 'leader' || !teamCode) return;
   clearTimeout(teamSyncTimer);
-  teamPushPending = true;
-  teamSyncTimer = setTimeout(()=>{
-    if(!teamPushPending) return;
-    appConfirm(
-      'Push your changes to the team library?',
-      ()=> teamPush(),
-      { title:'Push to Team', okLabel:'Push Now' }
-    );
-  }, 10000);
+  teamSyncTimer = setTimeout(()=> teamPush(), 10000);
 }
 
 // ── Create team ──
