@@ -3730,9 +3730,9 @@ function openQS(){
   document.getElementById('qs-song-name').textContent = currentSong.title;
 
   // ── Transpose Key dropdown ──
-  const tBtn = document.getElementById('qs-transpose-key-btn');
   const tGrid = document.getElementById('qs-transpose-grid');
 
+  // Update button text directly — no cloning needed
   function getTransposeKey(){
     const raw = transposeChord(currentSong.key, currentTranspose);
     const isMinor = currentSong.key.endsWith('m');
@@ -3740,15 +3740,40 @@ function openQS(){
   }
 
   function updateTransposeBtn(){
-    // Always get the live button from DOM (clone may have replaced original)
-    const liveBtn = document.getElementById('qs-transpose-key-btn');
-    if(!liveBtn) return;
-    liveBtn.textContent = getTransposeKey().replace('m','') + (currentSong.key.endsWith('m') ? 'm' : '');
-    // Filled when open, outline when closed
-    const isOpen = tGrid.style.display !== 'none';
-    liveBtn.style.background = isOpen ? 'var(--chord)' : 'transparent';
-    liveBtn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
-    liveBtn.style.border = '2px solid var(--chord)';
+    const btn = document.getElementById('qs-transpose-key-btn');
+    if(!btn) return;
+    btn.textContent = getTransposeKey();
+    const isOpen = tGrid && tGrid.style.display !== 'none';
+    btn.style.background = isOpen ? 'var(--chord)' : 'transparent';
+    btn.style.color = isOpen ? '#0d0f14' : 'var(--chord)';
+    btn.style.border = '2px solid var(--chord)';
+  }
+
+  // Update text immediately on open
+  updateTransposeBtn();
+
+  // Wire click — use data flag to avoid duplicate listeners
+  const tBtn = document.getElementById('qs-transpose-key-btn');
+  if(!tBtn._qsWired){
+    tBtn._qsWired = true;
+    tBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = tGrid.style.display !== 'none';
+      const upBtn   = document.getElementById('transpose-up');
+      const downBtn = document.getElementById('transpose-down');
+      tGrid.style.display = isOpen ? 'none' : 'block';
+      updateTransposeBtn();
+      if(upBtn)   upBtn.style.display   = isOpen ? 'none' : '';
+      if(downBtn) downBtn.style.display = isOpen ? 'none' : '';
+      if(!isOpen){
+        makeKeySelector(tGrid,
+          () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
+          setQSTransposeKey,
+          'var(--chord)',
+          false
+        );
+      }
+    });
   }
 
   function setTransposeKey(newKey){
@@ -3759,36 +3784,8 @@ function openQS(){
     if(idx!==-1) songs[idx].transpose = currentTranspose;
     save(); renderSongView(); refreshQSCapo();
     updateTransposeBtn();
-    // Re-render grid in place to update highlight — grid stays visible
     refreshQSKeyGrid();
   }
-
-  // Clone button to remove old listeners
-  const newTBtn = tBtn.cloneNode(true);
-  tBtn.parentNode.replaceChild(newTBtn, tBtn);
-  updateTransposeBtn();
-
-  newTBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    const isOpen = tGrid.style.display !== 'none';
-    const upBtn   = document.getElementById('transpose-up');
-    const downBtn = document.getElementById('transpose-down');
-    tGrid.style.display = isOpen ? 'none' : 'block';
-    newTBtn.style.background = isOpen ? 'transparent' : 'var(--chord)';
-    newTBtn.style.color = isOpen ? 'var(--chord)' : '#0d0f14';
-    newTBtn.style.border = '2px solid var(--chord)';
-    // Show semitone buttons only when grid is open
-    if(upBtn)   upBtn.style.display   = isOpen ? 'none' : '';
-    if(downBtn) downBtn.style.display = isOpen ? 'none' : '';
-    if(!isOpen){
-      makeKeySelector(tGrid,
-        () => normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')),
-        setQSTransposeKey,
-        'var(--chord)',
-        false // no m button — minor inherited from master key
-      );
-    }
-  });
 
   // Stop clicks inside QS transpose grid from bubbling
   tGrid.addEventListener('click', e => e.stopPropagation());
