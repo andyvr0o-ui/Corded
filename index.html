@@ -717,7 +717,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <span id="app-title">Corded</span>
 
     <button class="icon-btn" id="sort-btn" title="Sort">⇅</button>
-    <button class="icon-btn" id="hamburger-btn" title="Menu">☰</button>
+    <div style="position:relative;flex-shrink:0">
+      <button class="icon-btn" id="hamburger-btn" title="Menu">☰</button>
+      <div id="team-update-dot" style="display:none;position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--danger);border:2px solid var(--bg);cursor:pointer" title="Team library updated — tap to sync"></div>
+    </div>
   </nav>
 
   <!-- MAIN SWIPE CONTAINER: library ←→ setlist -->
@@ -5345,6 +5348,8 @@ function initTeam(){
     } else {
       // Pull latest on open for members
       setTimeout(teamPull, 2000);
+      // Start polling for updates
+      startTeamPolling();
     }
   }
 }
@@ -5357,6 +5362,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   document.getElementById('team-join-btn').addEventListener('click', teamJoinPrompt);
   document.getElementById('team-sync-btn').addEventListener('click', async ()=>{
+    const dot = document.getElementById('team-update-dot');
+    if(dot) dot.style.display = 'none';
     toast('Syncing...');
     await teamPull(true); // force pull regardless of version
     if(teamRole === 'leader') scheduleTeamPush();
@@ -5418,6 +5425,54 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 
 window.addEventListener('load', initTeam);
+
+// ── Team update polling (members only) ──
+let teamPollTimer = null;
+
+async function checkTeamUpdate(){
+  if(!teamCode || teamRole !== 'member') return;
+  try {
+    const res = await fetch(`${TEAM_API}/team/${teamCode}/library`);
+    if(!res.ok) return;
+    const data = await res.json();
+    const serverVersion  = data.version || 0;
+    const localVersion   = parseInt(localStorage.getItem('cb_team_version') || '0');
+    const dot = document.getElementById('team-update-dot');
+    if(serverVersion > localVersion){
+      // New update available — show dot
+      if(dot) dot.style.display = 'block';
+    } else {
+      if(dot) dot.style.display = 'none';
+    }
+  } catch(e){ /* silent fail */ }
+}
+
+function startTeamPolling(){
+  if(teamRole !== 'member' || !teamCode) return;
+  stopTeamPolling();
+  // Check immediately, then every 30 seconds
+  setTimeout(checkTeamUpdate, 3000);
+  teamPollTimer = setInterval(checkTeamUpdate, 30000);
+}
+
+function stopTeamPolling(){
+  if(teamPollTimer){ clearInterval(teamPollTimer); teamPollTimer = null; }
+}
+
+// Wire the dot — tap to sync
+document.addEventListener('DOMContentLoaded', ()=>{
+  const dot = document.getElementById('team-update-dot');
+  if(dot){
+    dot.addEventListener('click', async e=>{
+      e.stopPropagation();
+      dot.style.display = 'none';
+      toast('Syncing team library...');
+      await teamPull(true);
+    });
+  }
+});
+
+// Polling is started directly inside initTeam below
 
 // Team push triggered explicitly by song-changing actions only
 
