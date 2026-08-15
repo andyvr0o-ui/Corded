@@ -1688,7 +1688,27 @@ function renderSongView(){
   btn.textContent=inSL?'✓ Setlist':'+ Setlist';
   btn.classList.toggle('active',inSL);
 
+  // Hide scroll controls if content fits without scrolling
+  setTimeout(()=>{
+    const handle = document.getElementById('scroll-handle');
+    const songView = document.getElementById('song-view');
+    if(!handle || !songView) return;
+    const needsScroll = songView.scrollHeight > songView.clientHeight + 4;
+    handle.style.opacity = needsScroll ? '' : '0';
+    handle.style.pointerEvents = needsScroll ? '' : 'none';
+  }, 150);
 }
+
+// Re-check on resize or font change
+window.addEventListener('resize', ()=>{
+  if(!currentSong) return;
+  const handle = document.getElementById('scroll-handle');
+  const songView = document.getElementById('song-view');
+  if(!handle || !songView) return;
+  const needsScroll = songView.scrollHeight > songView.clientHeight + 4;
+  handle.style.opacity = needsScroll ? '' : '0';
+  handle.style.pointerEvents = needsScroll ? '' : 'none';
+});
 
 // setlistContext: array of song ids to swipe through (null = no swipe)
 let setlistContext=null;
