@@ -1691,7 +1691,7 @@ function renderSongView(){
   // Hide scroll controls if content fits without scrolling
   setTimeout(()=>{
     const handle = document.getElementById('scroll-handle');
-    const songView = document.getElementById('song-view');
+    const songView = document.getElementById('song-view-screen');
     if(!handle || !songView) return;
     const needsScroll = songView.scrollHeight > songView.clientHeight + 4;
     handle.style.opacity = needsScroll ? '' : '0';
@@ -1703,7 +1703,7 @@ function renderSongView(){
 window.addEventListener('resize', ()=>{
   if(!currentSong) return;
   const handle = document.getElementById('scroll-handle');
-  const songView = document.getElementById('song-view');
+  const songView = document.getElementById('song-view-screen');
   if(!handle || !songView) return;
   const needsScroll = songView.scrollHeight > songView.clientHeight + 4;
   handle.style.opacity = needsScroll ? '' : '0';
