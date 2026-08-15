@@ -716,10 +716,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
   <nav id="top-nav">
     <span id="app-title">Corded</span>
 
-    <button class="icon-btn" id="sort-btn" title="Sort">⇅</button>
-    <div style="position:relative;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+      <button id="team-update-dot" style="display:none;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--danger);border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0" title="Team library updated — tap to sync">● Update</button>
+      <button class="icon-btn" id="sort-btn" title="Sort">⇅</button>
       <button class="icon-btn" id="hamburger-btn" title="Menu">☰</button>
-      <div id="team-update-dot" style="display:none;position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--danger);border:2px solid var(--bg);cursor:pointer" title="Team library updated — tap to sync"></div>
     </div>
   </nav>
 
@@ -5440,7 +5440,7 @@ async function checkTeamUpdate(){
     const dot = document.getElementById('team-update-dot');
     if(serverVersion > localVersion){
       // New update available — show dot
-      if(dot) dot.style.display = 'block';
+      if(dot) dot.style.display = 'flex';
     } else {
       if(dot) dot.style.display = 'none';
     }
