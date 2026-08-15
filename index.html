@@ -622,7 +622,6 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <span id="app-title">Corded</span>
 
     <button class="icon-btn" id="sort-btn" title="Sort">⇅</button>
-    <button class="icon-btn" id="import-btn" title="Import ChordPro file">↑</button>
     <button class="icon-btn" id="hamburger-btn" title="Menu">☰</button>
   </nav>
 
@@ -639,8 +638,11 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
             <button id="add-song-new" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left">
               <span>✎</span> New song
             </button>
-            <button id="add-song-ug" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left">
+            <button id="add-song-ug" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left">
               <span>⬇</span> Import from Ultimate Guitar
+            </button>
+            <button id="add-song-chordpro" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left">
+              <span>⬆</span> Import ChordPro file
             </button>
           </div>
         </div>
@@ -3609,6 +3611,11 @@ document.getElementById('modal-save').addEventListener('click',()=>{
     input.addEventListener('keydown', e=>{ if(e.key==='Enter') overlay.querySelector('#ug-confirm2').click(); });
   });
 
+  document.getElementById('add-song-chordpro').addEventListener('click', ()=>{
+    menu.style.display = 'none';
+    triggerChordProImport();
+  });
+
   // Close menu on tap outside
   document.addEventListener('click', e=>{
     const wrap = document.getElementById('add-song-wrap');
@@ -3616,15 +3623,21 @@ document.getElementById('modal-save').addEventListener('click',()=>{
   });
 })();
 
-// ===== IMPORT =====
-document.getElementById('import-btn').addEventListener('click',()=>{
+function triggerChordProImport(){
   const inp=document.createElement('input');
   inp.type='file';
   inp.accept='.txt,.cho,.chopro';
-  inp.multiple=true; // allow multiple files
+  inp.multiple=true;
   inp.onchange=e=>{
-    const files=[...e.target.files];
-    if(!files.length)return;
+    // Reuse existing import logic by dispatching to a shared handler
+    handleChordProFiles([...e.target.files]);
+  };
+  inp.click();
+}
+
+// ===== IMPORT =====
+function handleChordProFiles(files){
+  if(!files.length)return;
     if(files.length===1){
       // Single file — open editor as before
       const f=files[0];
@@ -3672,9 +3685,7 @@ document.getElementById('import-btn').addEventListener('click',()=>{
         r.readAsText(f);
       });
     }
-  };
-  inp.click();
-});
+}
 
 // ===== SORT =====
 let sortAZ=true;
@@ -3695,9 +3706,10 @@ function goToPage(n, animate){
   sw.style.transform = n===0 ? 'translateX(0)' : 'translateX(-50%)';
   document.querySelectorAll('.page-dot').forEach(d=>d.classList.toggle('active', parseInt(d.dataset.page)===n));
   document.getElementById('sort-btn').style.display = n===0 ? '' : 'none';
-  document.getElementById('import-btn').style.display = n===0 ? '' : 'none';
+  // import-btn moved into Add menu — show/hide Add wrap instead
   const addSongBtn = document.getElementById('add-song-btn');
-  if(addSongBtn) addSongBtn.style.display = n===0 ? '' : 'none';
+  const addSongWrap = document.getElementById('add-song-wrap');
+  if(addSongWrap) addSongWrap.style.display = n===0 ? '' : 'none';
   // add-setlist-fab is now inline in the setlist header — no show/hide needed
 }
 
