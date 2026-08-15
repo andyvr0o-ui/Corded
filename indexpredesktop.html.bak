@@ -622,7 +622,6 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <span id="app-title">Corded</span>
 
     <button class="icon-btn" id="sort-btn" title="Sort">⇅</button>
-    <button class="icon-btn" id="import-btn" title="Import ChordPro file">↑</button>
     <button class="icon-btn" id="hamburger-btn" title="Menu">☰</button>
   </nav>
 
@@ -633,7 +632,20 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <div id="library-screen" class="main-page">
       <div id="search-bar" style="display:flex;align-items:center;gap:8px">
         <input id="search-input" type="search" placeholder="Search songs…" style="flex:1">
-        <button id="add-song-btn" style="flex-shrink:0;padding:8px 16px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0d0f14;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;white-space:nowrap">+ Add</button>
+        <div style="position:relative;flex-shrink:0" id="add-song-wrap">
+          <button id="add-song-btn" style="padding:8px 16px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0d0f14;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;white-space:nowrap">+ Add ▾</button>
+          <div id="add-song-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:200;min-width:200px;overflow:hidden">
+            <button id="add-song-new" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left">
+              <span>✎</span> New song
+            </button>
+            <button id="add-song-ug" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left">
+              <span>⬇</span> Import from Ultimate Guitar
+            </button>
+            <button id="add-song-chordpro" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left">
+              <span>⬆</span> Import ChordPro file
+            </button>
+          </div>
+        </div>
       </div>
       <div class="filter-row">
         <button class="filter-chip active" data-filter="all">All</button>
@@ -656,7 +668,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
             </button>
             <div id="sl-picker-dropdown"></div>
           </div>
-          <div id="delete-setlist-btn" style="display:none"></div>
+          <button id="delete-setlist-btn" style="display:none" title="Delete setlist">✕</button>
           <button id="add-setlist-fab" style="flex-shrink:0;padding:8px 16px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0d0f14;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;white-space:nowrap">+ New</button>
         </div>
         <!-- Hidden rename field (value still used for editing) -->
@@ -832,6 +844,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     </div>
   </div>
   <!-- Data -->
+
   <div class="drawer-section">
     <h3>Backup &amp; Restore</h3>
     <div style="display:flex;flex-direction:column;gap:7px">
@@ -989,7 +1002,37 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     <button class="icon-btn" id="qs-close">✕</button>
   </div>
   <div class="qs-body">
-    <!-- Transpose Key — dropdown -->
+    <!-- Member personal settings — shown only when viewing team song as member -->
+    <div id="qs-member-section" style="display:none;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="qs-section-label" style="margin:0">Team Key</div>
+        <span id="qs-team-key-label" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:4px 10px"></span>
+      </div>
+      <div class="qs-section-label" style="margin-bottom:6px">My Key <span style="font-size:9px;font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0">(personal)</span></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <button id="qs-personal-key-btn" style="padding:7px 14px;border-radius:8px;background:transparent;color:var(--accent);border:2px solid var(--accent);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;min-width:46px;text-align:center">G</button>
+        <button class="qs-step-btn" id="personal-transpose-down" style="border-radius:10px;flex:1">♭ −1</button>
+        <button class="qs-step-btn" id="personal-transpose-up" style="border-radius:10px;flex:1">♯ +1</button>
+      </div>
+      <div id="qs-personal-key-grid" style="display:none;margin-bottom:10px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div class="qs-section-label" style="margin-bottom:4px">My Capo <span style="font-size:9px;font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0">(personal)</span></div>
+          <div class="qs-stepper-row">
+            <button class="qs-step-btn" id="qs-personal-capo-dec">−</button>
+            <div class="qs-step-val" id="qs-personal-capo-val">0</div>
+            <button class="qs-step-btn" id="qs-personal-capo-inc">+</button>
+            <span class="qs-step-label">fret</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:4px">
+          <button id="qs-personal-reset-btn" style="width:100%;padding:8px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;cursor:pointer">Reset to Team</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transpose Key — dropdown (leader / no team) -->
+    <div id="qs-leader-transpose-section">
     <div class="qs-section-label">Transpose To</div>
     <div style="margin-bottom:8px;position:relative">
       <div style="display:flex;gap:8px;align-items:center">
@@ -999,9 +1042,10 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       </div>
       <div id="qs-transpose-grid" style="display:none;margin-top:8px"></div>
     </div>
+    </div><!-- end qs-leader-transpose-section -->
     <!-- Capo + Scroll Speed side by side -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
-      <div>
+      <div id="qs-team-capo-section">
         <div class="qs-section-label">Capo <span id="qs-capo-hint" class="qs-hint"></span></div>
         <div class="qs-stepper-row">
           <button class="qs-step-btn" id="qs-capo-dec">−</button>
@@ -1400,7 +1444,10 @@ function detectSongKey(lyrics){
 function renderSongView(){
   document.getElementById('sv-title').textContent=currentSong.title;
   document.getElementById('sv-artist').textContent=currentSong.artist||'';
-  const soundingKey=transposeChord(currentSong.key, currentTranspose - capo);
+  // Members use personal transpose + capo on top of team settings
+  const effectiveCapo = isTeamMemberViewingTeamSong() ? personalCapo : capo;
+  const effectiveTrans = isTeamMemberViewingTeamSong() ? getEffectiveTranspose() : currentTranspose;
+  const soundingKey=transposeChord(currentSong.key, effectiveTrans - effectiveCapo);
   // House convention: Ab Bb Eb are flat, everything else sharp — no key-based switching
   const displaySteps = currentTranspose - capo;
   document.getElementById('key-display').textContent = soundingKey + (capo ? ' 𝄪' + capo : '') + ' ▾';
@@ -1419,7 +1466,7 @@ function renderSongView(){
   let html='',inSec=false;
 
   for(const rawLine of rawLines){
-    const p=parseLine(rawLine, currentTranspose - capo, showChords);
+    const p=parseLine(rawLine, effectiveTrans - effectiveCapo, showChords);
     if(!p)continue;
     if(p.type==='section'){
       if(inSec)html+='</div>';
@@ -1547,6 +1594,8 @@ function openSong(id, context){
   setlistContext=context||null;
   // Restore saved transpose — song.key is the master, song.transpose is the display offset
   currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;showChords=true;
+  // Load personal settings for team members
+  loadPersonalSettings(currentSong.id);
   scrollSpeed = currentSong.scrollSpeed ?? defaultScrollSpeed;
   fontSize = currentSong.fontSize ?? parseInt(localStorage.getItem('cb_fontsize')||'15');
   // Load per-song two-col, fall back to global preference
@@ -2216,14 +2265,21 @@ function renderSongActionBtns(confirmDelete){
     });
     document.getElementById('sa-cancel-delete').addEventListener('click',()=>renderSongActionBtns(false));
   } else {
-    const showTeamRequest = teamCode && teamRole === 'member' && currentSong && !currentSong.teamSong;
-    const showTeamBadge   = currentSong && currentSong.teamSong;
+    const isLeader      = teamCode && teamRole === 'leader';
+    const isMemberSong  = teamCode && teamRole === 'member';
+    const showTeamRequest = isMemberSong && currentSong && !currentSong.teamSong;
+    const showTeamToggle  = isLeader && currentSong;
+    const isTeamSong = currentSong && currentSong.teamSong;
+
     btns.innerHTML=`
       <button class="action-btn" id="sa-edit"><span class="action-btn-icon">✎</span>Edit song</button>
       <button class="action-btn" id="sa-rename"><span class="action-btn-icon">Aa</span>Rename</button>
       <button class="action-btn" id="sa-setlist"><span class="action-btn-icon">${inSL?'✓':'+'}</span>${inSL?'Remove from setlist':'Add to setlist'}</button>
+      ${showTeamToggle ? `<button class="action-btn" id="sa-team-toggle">
+        <span class="action-btn-icon">${isTeamSong ? '🔒' : '👥'}</span>
+        ${isTeamSong ? 'Make Private' : 'Add to Team'}
+      </button>` : ''}
       ${showTeamRequest ? '<button class="action-btn" id="sa-team-request"><span class="action-btn-icon">👥</span>Request to add to team</button>' : ''}
-      ${showTeamBadge ? '<button class="action-btn" disabled style="opacity:.5"><span class="action-btn-icon">👥</span>Team song</button>' : ''}
       <button class="action-btn" id="sa-delete" style="color:var(--danger)"><span class="action-btn-icon">🗑</span>Delete song</button>
       <button class="action-btn" id="sa-close" style="justify-content:center;color:var(--text3)">Cancel</button>
     `;
@@ -2237,6 +2293,19 @@ function renderSongActionBtns(confirmDelete){
       else{sl.songs.push(currentSong.id);toast('Added to setlist!');}
       save();renderSongView();renderLibrary();renderSetlist();closeSongActions();
     });
+    if(showTeamToggle){
+      document.getElementById('sa-team-toggle').addEventListener('click',()=>{
+        const idx = songs.findIndex(s=>s.id===currentSong.id);
+        if(idx !== -1){
+          songs[idx].teamSong = !songs[idx].teamSong;
+          currentSong.teamSong = songs[idx].teamSong;
+          save();
+          renderLibrary();
+          toast(songs[idx].teamSong ? '👥 Added to team' : '🔒 Set to private');
+        }
+        closeSongActions();
+      });
+    }
     if(showTeamRequest){
       document.getElementById('sa-team-request').addEventListener('click',()=>{
         closeSongActions();
@@ -3464,7 +3533,10 @@ function doSaveSong(){
   // Normalise all chords to house convention on save
   const rawLyrics = getCurrentLyrics();
   const lyrics = rawLyrics.replace(/\[([^\]]+)\]/g, (m,c)=>'['+normaliseChord(c)+']');
-  const song={id:editingId||Date.now().toString(),title,artist:document.getElementById('form-artist').innerText.trim(),key:selectedKey,tag:selectedTag,lyrics};
+  const isTeamSong = teamCode && teamRole === 'leader';
+  const existingSong = editingId ? songs.find(s=>s.id===editingId) : null;
+  const song={id:editingId||Date.now().toString(),title,artist:document.getElementById('form-artist').innerText.trim(),key:selectedKey,tag:selectedTag,lyrics,
+    teamSong: isTeamSong || (existingSong && existingSong.teamSong) || false};
   if(editingId){const idx=songs.findIndex(s=>s.id===editingId);songs[idx]=song;if(currentSong&&currentSong.id===editingId)currentSong=song;}
   else{songs.push(song);}
   save();renderLibrary();
@@ -3492,17 +3564,80 @@ document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.targe
 document.getElementById('modal-save').addEventListener('click',()=>{
   if(doSaveSong()){ toast(editingId?'Updated!':'Song added!'); closeModal(); }
 });
-document.getElementById('add-song-btn').addEventListener('click',()=>openModal());
+// Add song button — shows mini menu
+(function(){
+  const btn  = document.getElementById('add-song-btn');
+  const menu = document.getElementById('add-song-menu');
+  if(!btn || !menu) return;
 
-// ===== IMPORT =====
-document.getElementById('import-btn').addEventListener('click',()=>{
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const isOpen = menu.style.display !== 'none';
+    menu.style.display = isOpen ? 'none' : 'block';
+  });
+
+  document.getElementById('add-song-new').addEventListener('click', ()=>{
+    menu.style.display = 'none';
+    openModal();
+  });
+
+  document.getElementById('add-song-ug').addEventListener('click', ()=>{
+    menu.style.display = 'none';
+    // Show UG import dialog
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:340px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px">Import from Ultimate Guitar</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Copy the song URL from Ultimate Guitar and paste it below.</div>
+        <input id="ug-url-input2" type="url" placeholder="https://tabs.ultimate-guitar.com/..."
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;margin-bottom:14px;box-sizing:border-box;outline:none">
+        <div style="display:flex;gap:10px">
+          <button id="ug-cancel2" style="flex:1;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+          <button id="ug-confirm2" style="flex:1;padding:11px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Import</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('#ug-url-input2');
+    input.focus();
+    overlay.querySelector('#ug-cancel2').addEventListener('click', ()=> overlay.remove());
+    overlay.querySelector('#ug-confirm2').addEventListener('click', ()=>{
+      const url = input.value.trim();
+      if(!url){ toast('Paste a URL first'); return; }
+      if(!url.includes('ultimate-guitar.com')){ toast('Not a valid Ultimate Guitar URL'); return; }
+      overlay.remove();
+      handleUGImport(url);
+    });
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') overlay.querySelector('#ug-confirm2').click(); });
+  });
+
+  document.getElementById('add-song-chordpro').addEventListener('click', ()=>{
+    menu.style.display = 'none';
+    triggerChordProImport();
+  });
+
+  // Close menu on tap outside
+  document.addEventListener('click', e=>{
+    const wrap = document.getElementById('add-song-wrap');
+    if(wrap && !wrap.contains(e.target)) menu.style.display = 'none';
+  });
+})();
+
+function triggerChordProImport(){
   const inp=document.createElement('input');
   inp.type='file';
   inp.accept='.txt,.cho,.chopro';
-  inp.multiple=true; // allow multiple files
+  inp.multiple=true;
   inp.onchange=e=>{
-    const files=[...e.target.files];
-    if(!files.length)return;
+    // Reuse existing import logic by dispatching to a shared handler
+    handleChordProFiles([...e.target.files]);
+  };
+  inp.click();
+}
+
+// ===== IMPORT =====
+function handleChordProFiles(files){
+  if(!files.length)return;
     if(files.length===1){
       // Single file — open editor as before
       const f=files[0];
@@ -3550,9 +3685,7 @@ document.getElementById('import-btn').addEventListener('click',()=>{
         r.readAsText(f);
       });
     }
-  };
-  inp.click();
-});
+}
 
 // ===== SORT =====
 let sortAZ=true;
@@ -3573,9 +3706,10 @@ function goToPage(n, animate){
   sw.style.transform = n===0 ? 'translateX(0)' : 'translateX(-50%)';
   document.querySelectorAll('.page-dot').forEach(d=>d.classList.toggle('active', parseInt(d.dataset.page)===n));
   document.getElementById('sort-btn').style.display = n===0 ? '' : 'none';
-  document.getElementById('import-btn').style.display = n===0 ? '' : 'none';
+  // import-btn moved into Add menu — show/hide Add wrap instead
   const addSongBtn = document.getElementById('add-song-btn');
-  if(addSongBtn) addSongBtn.style.display = n===0 ? '' : 'none';
+  const addSongWrap = document.getElementById('add-song-wrap');
+  if(addSongWrap) addSongWrap.style.display = n===0 ? '' : 'none';
   // add-setlist-fab is now inline in the setlist header — no show/hide needed
 }
 
@@ -3624,7 +3758,7 @@ function switchTab(screenId, showContent){
     document.getElementById('content').classList.add('song-active');
     document.getElementById('top-nav').style.display = 'none';
     document.getElementById('main-swipe').style.display = 'none';
-    const _ab = document.getElementById('add-song-btn'); if(_ab) _ab.style.display = 'none';
+    const _aw = document.getElementById('add-song-wrap'); if(_aw) _aw.style.display = 'none';
     // add-setlist-fab is inline — no hide needed
     document.getElementById('select-bar').classList.remove('visible');
   } else {
@@ -3803,6 +3937,9 @@ function openQS(){
   document.getElementById('qs-panel').classList.add('open');
   // Stop all taps inside QS panel from reaching the overlay (which would close QS)
   // The qs-overlay sits behind qs-panel so only taps outside reach it
+
+  // Show/hide member personal settings
+  refreshPersonalQS();
 }
 
 function closeQS(){
@@ -4514,7 +4651,8 @@ async function handleUGImport(url){
 
 function finishUGImport(title, artist, key, capo, lyrics){
   const id = 'ug' + Date.now();
-  const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics};
+  const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics,
+    teamSong: !!(teamCode && teamRole === 'leader')};
   songs.unshift(song);
   save();
   renderLibrary();
@@ -4582,6 +4720,163 @@ window.addEventListener('load', ()=>{
   const params = new URLSearchParams(window.location.search);
   const ugUrl = params.get('ugurl');
   if(ugUrl) setTimeout(()=>handleUGImport(ugUrl), 1000);
+});
+
+// ═══════════════════════════════════════════════════════
+// PER-MUSICIAN PERSONAL SETTINGS
+// ═══════════════════════════════════════════════════════
+
+let personalTranspose = 0; // member's personal offset on top of team key
+let personalCapo      = 0; // member's personal capo
+
+function getPersonalKey(songId){
+  try {
+    const raw = localStorage.getItem('cb_personal_' + songId);
+    return raw ? JSON.parse(raw) : { transpose: 0, capo: 0 };
+  } catch(e){ return { transpose: 0, capo: 0 }; }
+}
+
+function savePersonalKey(songId, transpose, capo){
+  localStorage.setItem('cb_personal_' + songId, JSON.stringify({ transpose, capo }));
+}
+
+function clearPersonalKey(songId){
+  localStorage.removeItem('cb_personal_' + songId);
+}
+
+function isTeamMemberViewingTeamSong(){
+  // True if user is a team member — personal settings apply to all songs
+  return teamCode && teamRole === 'member' && currentSong;
+}
+
+// Load personal settings when opening a song
+function loadPersonalSettings(songId){
+  const p = getPersonalKey(songId);
+  personalTranspose = p.transpose || 0;
+  personalCapo      = p.capo || 0;
+}
+
+// Get effective transpose for rendering (team transpose + personal offset)
+function getEffectiveTranspose(){
+  return (currentTranspose + personalTranspose + 12) % 12;
+}
+
+// Update QS panel for member personal settings
+function refreshPersonalQS(){
+  if(!currentSong) return;
+  const memberSection = document.getElementById('qs-member-section');
+  const leaderSection = document.getElementById('qs-leader-transpose-section');
+  const isMember = isTeamMemberViewingTeamSong();
+
+  if(memberSection) memberSection.style.display = isMember ? '' : 'none';
+  if(leaderSection) leaderSection.style.display = isMember ? 'none' : '';
+
+  // Hide regular capo for members (they use personal capo)
+  const teamCapoSection = document.getElementById('qs-team-capo-section');
+  if(teamCapoSection) teamCapoSection.style.display = isMember ? 'none' : '';
+
+  if(!isMember) return;
+
+  // Show team key
+  const teamKeyLabel = document.getElementById('qs-team-key-label');
+  if(teamKeyLabel){
+    const teamKey = normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')) + (currentSong.key.endsWith('m') ? 'm' : '');
+    teamKeyLabel.textContent = teamKey;
+  }
+
+  // Show personal key button
+  updatePersonalKeyBtn();
+
+  // Personal capo
+  const capoVal = document.getElementById('qs-personal-capo-val');
+  if(capoVal) capoVal.textContent = personalCapo;
+}
+
+function updatePersonalKeyBtn(){
+  const btn = document.getElementById('qs-personal-key-btn');
+  if(!btn || !currentSong) return;
+  const effectiveKey = normaliseNote(transposeChord(currentSong.key, getEffectiveTranspose()).replace('m','')) + (currentSong.key.endsWith('m') ? 'm' : '');
+  btn.textContent = effectiveKey;
+}
+
+// Wire personal settings buttons
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Personal key button — open grid
+  const personalKeyBtn = document.getElementById('qs-personal-key-btn');
+  const personalKeyGrid = document.getElementById('qs-personal-key-grid');
+  if(personalKeyBtn && personalKeyGrid){
+    personalKeyBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      const isOpen = personalKeyGrid.style.display !== 'none';
+      personalKeyGrid.style.display = isOpen ? 'none' : 'block';
+      personalKeyBtn.style.background = isOpen ? 'transparent' : 'var(--accent)';
+      personalKeyBtn.style.color = isOpen ? 'var(--accent)' : '#0d0f14';
+      if(!isOpen){
+        makeKeySelector(personalKeyGrid,
+          () => normaliseNote(transposeChord(currentSong.key, getEffectiveTranspose()).replace('m','')),
+          (newKey) => {
+            // Calculate personal offset = desired key - team key
+            const gi = k=>{ const kk=k.replace('m',''); const si=SHARP_SCALE.indexOf(kk); return si!==-1?si:FLAT_SCALE.indexOf(kk); };
+            const teamDisplayKey = normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m',''));
+            personalTranspose = ((gi(newKey) - gi(teamDisplayKey)) % 12 + 12) % 12;
+            savePersonalKey(currentSong.id, personalTranspose, personalCapo);
+            updatePersonalKeyBtn();
+            renderSongView();
+            // Re-render grid with new highlight
+            makeKeySelector(personalKeyGrid,
+              () => normaliseNote(transposeChord(currentSong.key, getEffectiveTranspose()).replace('m','')),
+              ()=>{},
+              'var(--accent)', false
+            );
+          },
+          'var(--accent)', false
+        );
+      }
+    });
+    personalKeyGrid.addEventListener('click', e => e.stopPropagation());
+  }
+
+  // Personal semitone buttons
+  document.getElementById('personal-transpose-up').addEventListener('click', e=>{
+    e.stopPropagation();
+    personalTranspose = (personalTranspose + 1) % 12;
+    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
+    updatePersonalKeyBtn();
+    renderSongView();
+  });
+  document.getElementById('personal-transpose-down').addEventListener('click', e=>{
+    e.stopPropagation();
+    personalTranspose = ((personalTranspose - 1) + 12) % 12;
+    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
+    updatePersonalKeyBtn();
+    renderSongView();
+  });
+
+  // Personal capo
+  document.getElementById('qs-personal-capo-inc').addEventListener('click', e=>{
+    e.stopPropagation();
+    personalCapo = Math.min(personalCapo + 1, 11);
+    document.getElementById('qs-personal-capo-val').textContent = personalCapo;
+    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
+    renderSongView();
+  });
+  document.getElementById('qs-personal-capo-dec').addEventListener('click', e=>{
+    e.stopPropagation();
+    personalCapo = Math.max(personalCapo - 1, 0);
+    document.getElementById('qs-personal-capo-val').textContent = personalCapo;
+    savePersonalKey(currentSong.id, personalTranspose, personalCapo);
+    renderSongView();
+  });
+
+  // Reset to team settings
+  document.getElementById('qs-personal-reset-btn').addEventListener('click', e=>{
+    e.stopPropagation();
+    personalTranspose = 0; personalCapo = 0;
+    clearPersonalKey(currentSong.id);
+    refreshPersonalQS();
+    renderSongView();
+    toast('Reset to team settings');
+  });
 });
 
 // ═══════════════════════════════════════════════════════
@@ -4705,7 +5000,7 @@ async function teamPush(){
 function scheduleTeamPush(){
   if(teamRole !== 'leader' || !teamCode) return;
   clearTimeout(teamSyncTimer);
-  teamSyncTimer = setTimeout(()=> teamPush(), 10000);
+  teamSyncTimer = setTimeout(()=> teamPush(), 5000);
 }
 
 // ── Create team ──
@@ -4912,10 +5207,19 @@ async function teamReviewRequests(){
 function initTeam(){
   updateTeamUI();
   if(teamCode){
-    // Pull latest on open
-    setTimeout(teamPull, 2000);
-    // Check pending requests if leader
-    if(teamRole === 'leader') setTimeout(teamReviewRequests, 3000);
+    if(teamRole === 'leader'){
+      // Ensure all leader songs are marked as team songs
+      let changed = false;
+      songs = songs.map(s => {
+        if(!s.teamSong){ changed = true; return {...s, teamSong: true}; }
+        return s;
+      });
+      if(changed) save();
+      setTimeout(teamReviewRequests, 3000);
+    } else {
+      // Pull latest on open for members
+      setTimeout(teamPull, 2000);
+    }
   }
 }
 

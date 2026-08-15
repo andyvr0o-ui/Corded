@@ -194,6 +194,101 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 .seg-lyric{font-size:1em;color:var(--text);line-height:1.4;white-space:pre}
 .spacer-line{height:10px}
 
+/* ══════════════════════════════════════════
+   DESKTOP LAYOUT (≥ 1024px)
+   All scoped — mobile layout completely unchanged
+   ══════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  /* Body background fills wide screens */
+  body { background: #070910; }
+
+  /* Outer shell centred with dark sides */
+  #app-shell {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 80px rgba(0,0,0,.8);
+  }
+
+  /* Top nav spans full width */
+  #top-nav { width: 100%; }
+
+  /* Split layout: library left, setlist right */
+  #main-swipe {
+    display: flex !important;
+    transform: none !important;
+    width: 100% !important;
+    flex: 1;
+    overflow: hidden;
+  }
+  .swipe-page {
+    width: 340px !important;
+    flex-shrink: 0 !important;
+    height: 100%;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+  .swipe-page:last-child {
+    width: auto !important;
+    flex: 1 !important;
+    border-right: none;
+  }
+  /* Hide swipe dots on desktop */
+  .page-dots { display: none !important; }
+  /* Always show add button on desktop */
+  #add-song-wrap { display: block !important; }
+  /* Hide song view overlay on desktop (opens in popup instead) */
+  #song-view.desktop-hidden { display: none !important; }
+}
+
+/* ── Popup mode (song window) ── */
+body.popup-mode {
+  background: var(--bg);
+  overflow: hidden;
+}
+body.popup-mode #top-nav,
+body.popup-mode #main-swipe,
+body.popup-mode .page-dots,
+body.popup-mode #song-action-overlay,
+body.popup-mode #song-action-sheet {
+  display: none !important;
+}
+body.popup-mode #song-view {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: var(--bg) !important;
+}
+/* Popup column picker */
+#popup-col-picker {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+body.popup-mode #popup-col-picker { display: flex; }
+.popup-col-btn {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.popup-col-btn.active {
+  background: var(--chord);
+  border-color: var(--chord);
+  color: #0d0f14;
+}
+
 /* ── INTEGRATED SCROLL PILL — always visible bottom-right in song view ── */
 #scroll-handle{
   position:fixed;bottom:24px;right:0;z-index:60;
@@ -711,6 +806,12 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
           </div>
           <div id="sv-artist"></div>
         </button>
+        <!-- Desktop popup column picker -->
+        <div id="popup-col-picker">
+          <button class="popup-col-btn" data-cols="1">1</button>
+          <button class="popup-col-btn" data-cols="2">2</button>
+          <button class="popup-col-btn" data-cols="3">3</button>
+        </div>
         <button class="icon-btn" id="fs-enter-btn" title="Presentation mode">⛶</button>
         <div id="song-view-toolbar">
           <button class="toolbar-chip" id="toggle-chords-btn">♩ Chords</button>
@@ -1589,7 +1690,28 @@ function renderSongView(){
 // setlistContext: array of song ids to swipe through (null = no swipe)
 let setlistContext=null;
 
+// ── Desktop helpers ──
+function isDesktop(){
+  return window.innerWidth >= 1024 && !isPopupMode();
+}
+function isPopupMode(){
+  return window.location.search.includes('popup=1');
+}
+
 function openSong(id, context){
+  // Desktop: open in popup window instead of full-screen overlay
+  if(isDesktop()){
+    const url = window.location.pathname + '?popup=1&song=' + encodeURIComponent(id);
+    const winName = 'corded_song_' + id.replace(/[^a-z0-9]/gi,'_');
+    if(!window._songPopups) window._songPopups = {};
+    const existing = window._songPopups[winName];
+    if(existing && !existing.closed){ existing.focus(); return; }
+    const w = window.open(url, winName,
+      'width=860,height=960,toolbar=0,menubar=0,location=0,status=0,resizable=1,scrollbars=0');
+    window._songPopups[winName] = w;
+    return;
+  }
+  // Mobile: existing behaviour
   currentSong=songs.find(s=>s.id===id);if(!currentSong)return;
   setlistContext=context||null;
   // Restore saved transpose — song.key is the master, song.transpose is the display offset
@@ -5637,6 +5759,96 @@ document.addEventListener('visibilitychange', ()=>{
 </script>
 
 <script>
+// ══════════════════════════════════════════
+// DESKTOP POPUP MODE INIT
+// ══════════════════════════════════════════
+(function initDesktopPopup(){
+  if(!isPopupMode()) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const songId = params.get('song');
+
+  // Apply popup mode class immediately
+  document.body.classList.add('popup-mode');
+
+  // Init column picker
+  const savedCols = parseInt(localStorage.getItem('cb_desktop_cols') || '1');
+  let desktopCols = savedCols;
+
+  function applyDesktopCols(n){
+    desktopCols = n;
+    localStorage.setItem('cb_desktop_cols', n);
+    const lyricsEl = document.getElementById('song-lyrics');
+    if(lyricsEl){
+      lyricsEl.style.columnCount = n > 1 ? n : '';
+      lyricsEl.style.columnGap = n > 1 ? '32px' : '';
+    }
+    document.querySelectorAll('.popup-col-btn').forEach(btn=>{
+      btn.classList.toggle('active', parseInt(btn.dataset.cols) === n);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // Wire column picker buttons
+    document.querySelectorAll('.popup-col-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> applyDesktopCols(parseInt(btn.dataset.cols)));
+    });
+
+    // Override back button to close popup window
+    const backBtn = document.getElementById('back-btn');
+    if(backBtn){
+      backBtn.addEventListener('click', e=>{
+        e.stopImmediatePropagation();
+        window.close();
+      }, true);
+    }
+
+    // Open song once app is loaded
+    window.addEventListener('load', ()=>{
+      if(songId){
+        const song = songs.find(s=>s.id===songId);
+        if(song){
+          // Call internal openSong bypassing desktop check
+          openSongInternal(songId);
+          applyDesktopCols(desktopCols);
+        } else {
+          document.body.innerHTML = '<div style="color:var(--text2);font-family:Nunito,sans-serif;padding:40px;text-align:center">Song not found.<br><button onclick="window.close()" style="margin-top:20px;padding:10px 20px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer">Close</button></div>';
+        }
+      }
+    });
+  });
+
+  // Live refresh when song is edited in main window
+  window.addEventListener('storage', e=>{
+    if((e.key === 'cb_songs') && currentSong){
+      try {
+        songs = JSON.parse(e.newValue || '[]');
+        const updated = songs.find(s=>s.id===currentSong.id);
+        if(updated){ currentSong = updated; renderSongView(); applyDesktopCols(desktopCols); }
+      } catch(err){}
+    }
+  });
+})();
+
+// Internal openSong that bypasses the desktop popup intercept
+function openSongInternal(id, context){
+  currentSong=songs.find(s=>s.id===id);if(!currentSong)return;
+  setlistContext=context||null;
+  currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;showChords=true;
+  loadPersonalSettings(currentSong.id);
+  scrollSpeed = currentSong.scrollSpeed ?? defaultScrollSpeed;
+  fontSize = currentSong.fontSize ?? parseInt(localStorage.getItem('cb_fontsize')||'15');
+  const globalTwoCol = localStorage.getItem('cb_twocol');
+  twoColMode = currentSong.twoCol !== undefined ? currentSong.twoCol : (globalTwoCol !== null ? globalTwoCol==='1' : false);
+  updatePillSpeed();
+  const tip = document.getElementById('chord-tooltip');
+  if(tip){ tip.style.display='none'; delete tip.dataset.chord; delete tip.dataset.mode; }
+  renderSongView();
+  switchTab('song-view-screen', false);
+  document.getElementById('scroll-handle').classList.add('song-open');
+  showHeader(false);
+}
+
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('/corded/service-worker.js')
@@ -5645,5 +5857,6 @@ if('serviceWorker' in navigator){
   });
 }
 </script>
+</div><!-- end #app-shell -->
 </body>
 </html>
