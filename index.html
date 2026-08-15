@@ -3663,6 +3663,7 @@ function doSaveSong(){
     teamSong: isTeamSong || (existingSong && existingSong.teamSong) || false};
   if(editingId){const idx=songs.findIndex(s=>s.id===editingId);songs[idx]=song;if(currentSong&&currentSong.id===editingId)currentSong=song;}
   else{songs.push(song);}
+  teamDirty = true;
   save();renderLibrary();
   if(currentSong&&currentSong.id===song.id)renderSongView();
   return true;
@@ -3801,6 +3802,7 @@ function handleChordProFiles(files){
             imported++;
           }
           if(loaded===files.length){
+            teamDirty = true;
             save();
             renderLibrary();
             toast(`Imported ${imported} song${imported!==1?'s':''}${loaded-imported>0?' ('+( loaded-imported)+' duplicates skipped)':''}`);
@@ -4778,6 +4780,7 @@ function finishUGImport(title, artist, key, capo, lyrics){
   const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics,
     teamSong: !!(teamCode && teamRole === 'leader')};
   songs.unshift(song);
+  teamDirty = true;
   save();
   renderLibrary();
   toast('✓ Imported: ' + title);
