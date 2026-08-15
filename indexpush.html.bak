@@ -2379,9 +2379,10 @@ function renderSongActionBtns(confirmDelete){
       const id=currentSong.id;
       songs=songs.filter(s=>s.id!==id);
       setlists.forEach(sl=>{ sl.songs=sl.songs.filter(sid=>sid!==id); });
+      teamDirty = true;
       save(); renderLibrary(); renderSetlist();
-      scheduleTeamPush();
       closeSongActions();
+      // Go back to library
       document.getElementById('back-btn').click();
       toast('Song deleted');
     });
@@ -2421,9 +2422,9 @@ function renderSongActionBtns(confirmDelete){
         if(idx !== -1){
           songs[idx].teamSong = !songs[idx].teamSong;
           currentSong.teamSong = songs[idx].teamSong;
+          teamDirty = true;
           save();
           renderLibrary();
-          scheduleTeamPush();
           toast(songs[idx].teamSong ? '👥 Added to team' : '🔒 Set to private');
         }
         closeSongActions();
@@ -3662,9 +3663,9 @@ function doSaveSong(){
     teamSong: isTeamSong || (existingSong && existingSong.teamSong) || false};
   if(editingId){const idx=songs.findIndex(s=>s.id===editingId);songs[idx]=song;if(currentSong&&currentSong.id===editingId)currentSong=song;}
   else{songs.push(song);}
+  teamDirty = true;
   save();renderLibrary();
   if(currentSong&&currentSong.id===song.id)renderSongView();
-  scheduleTeamPush();
   return true;
 }
 
@@ -3801,9 +3802,9 @@ function handleChordProFiles(files){
             imported++;
           }
           if(loaded===files.length){
+            teamDirty = true;
             save();
             renderLibrary();
-            scheduleTeamPush();
             toast(`Imported ${imported} song${imported!==1?'s':''}${loaded-imported>0?' ('+( loaded-imported)+' duplicates skipped)':''}`);
           }
         };
@@ -4779,9 +4780,9 @@ function finishUGImport(title, artist, key, capo, lyrics){
   const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics,
     teamSong: !!(teamCode && teamRole === 'leader')};
   songs.unshift(song);
+  teamDirty = true;
   save();
   renderLibrary();
-  scheduleTeamPush();
   toast('✓ Imported: ' + title);
   setTimeout(()=>openSong(id), 600);
 }
@@ -5419,7 +5420,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 window.addEventListener('load', initTeam);
 
-// Team push triggered explicitly by song-changing actions only
+// Hook into save to schedule team push
+document.addEventListener('corded-saved', ()=>{
+  if(teamRole === 'leader') scheduleTeamPush();
+});
 
 // ═══════════════════════════════════════════════════════
 // GOOGLE DRIVE SYNC
