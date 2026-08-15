@@ -1032,7 +1032,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
     </div><!-- end qs-leader-transpose-section -->
     <!-- Capo + Scroll Speed side by side -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
-      <div>
+      <div id="qs-team-capo-section">
         <div class="qs-section-label">Capo <span id="qs-capo-hint" class="qs-hint"></span></div>
         <div class="qs-stepper-row">
           <button class="qs-step-btn" id="qs-capo-dec">−</button>
@@ -4671,6 +4671,10 @@ function refreshPersonalQS(){
 
   if(memberSection) memberSection.style.display = isMember ? '' : 'none';
   if(leaderSection) leaderSection.style.display = isMember ? 'none' : '';
+
+  // Hide regular capo for members (they use personal capo)
+  const teamCapoSection = document.getElementById('qs-team-capo-section');
+  if(teamCapoSection) teamCapoSection.style.display = isMember ? 'none' : '';
 
   if(!isMember) return;
 
