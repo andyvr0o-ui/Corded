@@ -4646,12 +4646,12 @@ function clearPersonalKey(songId){
 }
 
 function isTeamMemberViewingTeamSong(){
-  return teamCode && teamRole === 'member' && currentSong && currentSong.teamSong;
+  // True if user is a team member — personal settings apply to all songs
+  return teamCode && teamRole === 'member' && currentSong;
 }
 
 // Load personal settings when opening a song
 function loadPersonalSettings(songId){
-  if(!isTeamMemberViewingTeamSong()){ personalTranspose = 0; personalCapo = 0; return; }
   const p = getPersonalKey(songId);
   personalTranspose = p.transpose || 0;
   personalCapo      = p.capo || 0;
