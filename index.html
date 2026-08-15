@@ -2252,14 +2252,21 @@ function renderSongActionBtns(confirmDelete){
     });
     document.getElementById('sa-cancel-delete').addEventListener('click',()=>renderSongActionBtns(false));
   } else {
-    const showTeamRequest = teamCode && teamRole === 'member' && currentSong && !currentSong.teamSong;
-    const showTeamBadge   = currentSong && currentSong.teamSong;
+    const isLeader      = teamCode && teamRole === 'leader';
+    const isMemberSong  = teamCode && teamRole === 'member';
+    const showTeamRequest = isMemberSong && currentSong && !currentSong.teamSong;
+    const showTeamToggle  = isLeader && currentSong;
+    const isTeamSong = currentSong && currentSong.teamSong;
+
     btns.innerHTML=`
       <button class="action-btn" id="sa-edit"><span class="action-btn-icon">✎</span>Edit song</button>
       <button class="action-btn" id="sa-rename"><span class="action-btn-icon">Aa</span>Rename</button>
       <button class="action-btn" id="sa-setlist"><span class="action-btn-icon">${inSL?'✓':'+'}</span>${inSL?'Remove from setlist':'Add to setlist'}</button>
+      ${showTeamToggle ? `<button class="action-btn" id="sa-team-toggle">
+        <span class="action-btn-icon">${isTeamSong ? '🔒' : '👥'}</span>
+        ${isTeamSong ? 'Make Private' : 'Add to Team'}
+      </button>` : ''}
       ${showTeamRequest ? '<button class="action-btn" id="sa-team-request"><span class="action-btn-icon">👥</span>Request to add to team</button>' : ''}
-      ${showTeamBadge ? '<button class="action-btn" disabled style="opacity:.5"><span class="action-btn-icon">👥</span>Team song</button>' : ''}
       <button class="action-btn" id="sa-delete" style="color:var(--danger)"><span class="action-btn-icon">🗑</span>Delete song</button>
       <button class="action-btn" id="sa-close" style="justify-content:center;color:var(--text3)">Cancel</button>
     `;
@@ -2273,6 +2280,19 @@ function renderSongActionBtns(confirmDelete){
       else{sl.songs.push(currentSong.id);toast('Added to setlist!');}
       save();renderSongView();renderLibrary();renderSetlist();closeSongActions();
     });
+    if(showTeamToggle){
+      document.getElementById('sa-team-toggle').addEventListener('click',()=>{
+        const idx = songs.findIndex(s=>s.id===currentSong.id);
+        if(idx !== -1){
+          songs[idx].teamSong = !songs[idx].teamSong;
+          currentSong.teamSong = songs[idx].teamSong;
+          save();
+          renderLibrary();
+          toast(songs[idx].teamSong ? '👥 Added to team' : '🔒 Set to private');
+        }
+        closeSongActions();
+      });
+    }
     if(showTeamRequest){
       document.getElementById('sa-team-request').addEventListener('click',()=>{
         closeSongActions();
@@ -3500,7 +3520,10 @@ function doSaveSong(){
   // Normalise all chords to house convention on save
   const rawLyrics = getCurrentLyrics();
   const lyrics = rawLyrics.replace(/\[([^\]]+)\]/g, (m,c)=>'['+normaliseChord(c)+']');
-  const song={id:editingId||Date.now().toString(),title,artist:document.getElementById('form-artist').innerText.trim(),key:selectedKey,tag:selectedTag,lyrics};
+  const isTeamSong = teamCode && teamRole === 'leader';
+  const existingSong = editingId ? songs.find(s=>s.id===editingId) : null;
+  const song={id:editingId||Date.now().toString(),title,artist:document.getElementById('form-artist').innerText.trim(),key:selectedKey,tag:selectedTag,lyrics,
+    teamSong: isTeamSong || (existingSong && existingSong.teamSong) || false};
   if(editingId){const idx=songs.findIndex(s=>s.id===editingId);songs[idx]=song;if(currentSong&&currentSong.id===editingId)currentSong=song;}
   else{songs.push(song);}
   save();renderLibrary();
@@ -4553,7 +4576,8 @@ async function handleUGImport(url){
 
 function finishUGImport(title, artist, key, capo, lyrics){
   const id = 'ug' + Date.now();
-  const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics};
+  const song = {id, title, artist, key: key||'C', capo, tag:'worship', transpose:0, lyrics,
+    teamSong: !!(teamCode && teamRole === 'leader')};
   songs.unshift(song);
   save();
   renderLibrary();
@@ -5108,10 +5132,19 @@ async function teamReviewRequests(){
 function initTeam(){
   updateTeamUI();
   if(teamCode){
-    // Pull latest on open
-    setTimeout(teamPull, 2000);
-    // Check pending requests if leader
-    if(teamRole === 'leader') setTimeout(teamReviewRequests, 3000);
+    if(teamRole === 'leader'){
+      // Ensure all leader songs are marked as team songs
+      let changed = false;
+      songs = songs.map(s => {
+        if(!s.teamSong){ changed = true; return {...s, teamSong: true}; }
+        return s;
+      });
+      if(changed) save();
+      setTimeout(teamReviewRequests, 3000);
+    } else {
+      // Pull latest on open for members
+      setTimeout(teamPull, 2000);
+    }
   }
 }
 
