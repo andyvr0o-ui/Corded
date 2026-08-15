@@ -2379,6 +2379,7 @@ function renderSongActionBtns(confirmDelete){
       const id=currentSong.id;
       songs=songs.filter(s=>s.id!==id);
       setlists.forEach(sl=>{ sl.songs=sl.songs.filter(sid=>sid!==id); });
+      teamDirty = true;
       save(); renderLibrary(); renderSetlist();
       closeSongActions();
       // Go back to library
@@ -2421,6 +2422,7 @@ function renderSongActionBtns(confirmDelete){
         if(idx !== -1){
           songs[idx].teamSong = !songs[idx].teamSong;
           currentSong.teamSong = songs[idx].teamSong;
+          teamDirty = true;
           save();
           renderLibrary();
           toast(songs[idx].teamSong ? '👥 Added to team' : '🔒 Set to private');
