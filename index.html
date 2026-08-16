@@ -944,6 +944,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
         <button class="drawer-btn" id="team-delegate-btn" style="display:none">🔑 Generate Delegation Code</button>
         <button class="drawer-btn" id="team-revoke-btn" style="display:none;color:var(--accent);border-color:rgba(244,162,97,.4)">⊘ Delegation Active — Revoke</button>
         <button class="drawer-btn" id="team-claim-delegate-btn" style="display:none">↗ Enter Delegation Code</button>
+        <button class="drawer-btn" id="team-stepdown-btn" style="display:none;color:var(--text3)">↩ Step Down as Session Leader</button>
         <button class="drawer-btn" id="team-leave-btn" style="display:none;color:var(--text3)">Leave Team</button>
         <button class="drawer-btn" id="team-delete-btn" style="display:none;color:var(--danger);border-color:rgba(230,57,70,.3)">🗑 Delete Team</button>
       </div>
@@ -5430,6 +5431,8 @@ function updateTeamUI(){
     const reconnectBtn = document.getElementById('team-reconnect-btn');
     if(delegateBtn) delegateBtn.style.display = teamRole === 'leader' ? '' : 'none';
     if(claimBtn)    claimBtn.style.display    = teamRole === 'member' ? '' : 'none';
+    const stepBtn = document.getElementById('team-stepdown-btn');
+    if(stepBtn) stepBtn.style.display = teamRole === 'session-leader' ? '' : 'none';
     if(teamRole === 'leader' && window.refreshDelegationStatus) window.refreshDelegationStatus();
     else { const rb = document.getElementById('team-revoke-btn'); if(rb) rb.style.display = 'none'; }
     if(deleteBtn)   deleteBtn.style.display   = teamRole === 'leader' ? '' : 'none';
@@ -5449,6 +5452,7 @@ function updateTeamUI(){
     if(delegateBtn) delegateBtn.style.display = 'none';
     if(claimBtn)    claimBtn.style.display    = 'none';
     const rb2 = document.getElementById('team-revoke-btn'); if(rb2) rb2.style.display = 'none';
+    const sb2 = document.getElementById('team-stepdown-btn'); if(sb2) sb2.style.display = 'none';
     if(deleteBtn)   deleteBtn.style.display   = 'none';
     if(reconnectBtn) reconnectBtn.style.display = '';
   }
@@ -5855,7 +5859,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6);text-align:center">
           <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Delegation Code</div>
           <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Share this with your session leader. Expires at ${expiry}.</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;color:var(--accent);letter-spacing:4px;margin-bottom:8px">${data.delegateCode}</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;color:var(--accent);letter-spacing:4px">${data.delegateCode}</div>
+            <button id="del-copy-btn" title="Copy code" style="flex-shrink:0;width:34px;height:34px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:15px;cursor:pointer">⧉</button>
+          </div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:20px">One use only · Expires ${expiry}</div>
           <div style="display:flex;gap:10px">
             <button id="del-share-btn" style="flex:1;padding:11px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Share Code</button>
@@ -5864,6 +5871,22 @@ document.addEventListener('DOMContentLoaded', ()=>{
           <button id="del-close-btn" style="margin-top:10px;width:100%;padding:10px;border-radius:10px;background:transparent;border:none;color:var(--text3);font-family:'Nunito',sans-serif;font-size:13px;cursor:pointer">Close</button>
         </div>`;
       document.body.appendChild(ov);
+      ov.querySelector('#del-copy-btn').addEventListener('click', async ()=>{
+        try {
+          await navigator.clipboard.writeText(data.delegateCode);
+          toast('Code copied');
+        } catch(e){
+          // Fallback for older browsers
+          const ta = document.createElement('textarea');
+          ta.value = data.delegateCode;
+          ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); toast('Code copied'); }
+          catch(err){ toast('Could not copy'); }
+          ta.remove();
+        }
+      });
       ov.querySelector('#del-share-btn').addEventListener('click', ()=>{
         if(navigator.share) navigator.share({ title:'Corded Session Code', text:'Session leader code for ' + (teamName||teamCode) + ': ' + data.delegateCode + ' (expires ' + expiry + ')' });
       });
@@ -5917,6 +5940,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
           toast('Delegation revoked');
         } catch(e){ toast('Revoke failed: ' + e.message); }
       }, { title:'Revoke Delegation', okLabel:'Revoke', okDanger:true });
+  });
+
+  // ── Step down as session leader (member) ──
+  document.getElementById('team-stepdown-btn').addEventListener('click', ()=>{
+    appConfirm('Step down as session leader? You will return to being a regular team member. Your songs and personal settings are kept.',
+      ()=>{
+        teamRole = 'member';
+        teamToken = null;
+        teamSessionExp = 0;
+        localStorage.setItem('cb_team_role', 'member');
+        localStorage.removeItem('cb_team_token');
+        localStorage.removeItem('cb_team_session_exp');
+        updateTeamUI();
+        toast('Stepped down — you are now a team member');
+      }, { title:'Step Down', okLabel:'Step Down' });
   });
 
   // ── Claim delegation code (member) ──
