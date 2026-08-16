@@ -5822,6 +5822,113 @@ document.addEventListener('DOMContentLoaded', ()=>{
       toast('Left team');
     }, { title:'Leave Team', okLabel:'Leave', okDanger:true });
   });
+
+  // ── Generate delegation code (leader) ──
+  document.getElementById('team-delegate-btn').addEventListener('click', async ()=>{
+    try {
+      const res = await fetch(`${TEAM_API}/team/${teamCode}/delegate`, {
+        method: 'POST',
+        headers: { 'X-Leader-Token': teamToken }
+      });
+      const data = await res.json();
+      if(data.error) throw new Error(data.error);
+      const expiry = new Date(data.expiry).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+      ov.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6);text-align:center">
+          <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Delegation Code</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Share this with your session leader. Expires at ${expiry}.</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;color:var(--accent);letter-spacing:4px;margin-bottom:8px">${data.delegateCode}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:20px">One use only · Expires ${expiry}</div>
+          <div style="display:flex;gap:10px">
+            <button id="del-share-btn" style="flex:1;padding:11px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Share Code</button>
+            <button id="del-revoke-btn" style="flex:1;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Revoke</button>
+          </div>
+          <button id="del-close-btn" style="margin-top:10px;width:100%;padding:10px;border-radius:10px;background:transparent;border:none;color:var(--text3);font-family:'Nunito',sans-serif;font-size:13px;cursor:pointer">Close</button>
+        </div>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#del-share-btn').addEventListener('click', ()=>{
+        if(navigator.share) navigator.share({ title:'Corded Session Code', text:'Session leader code for ' + (teamName||teamCode) + ': ' + data.delegateCode + ' (expires ' + expiry + ')' });
+      });
+      ov.querySelector('#del-revoke-btn').addEventListener('click', async ()=>{
+        await fetch(`${TEAM_API}/team/${teamCode}/delegate`, { method:'DELETE', headers:{'X-Leader-Token':teamToken} });
+        ov.remove(); toast('Delegation code revoked');
+      });
+      ov.querySelector('#del-close-btn').addEventListener('click', ()=> ov.remove());
+    } catch(e){ toast('Failed: ' + e.message); }
+  });
+
+  // ── Claim delegation code (member) ──
+  document.getElementById('team-claim-delegate-btn').addEventListener('click', ()=>{
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Enter Session Code</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Enter the 6-character code from your team leader.</div>
+        <input id="claim-code-input" type="text" placeholder="A3K7P2" maxlength="6"
+          style="width:100%;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;letter-spacing:4px;text-align:center;text-transform:uppercase;margin-bottom:16px;box-sizing:border-box;outline:none">
+        <div style="display:flex;gap:10px">
+          <button id="claim-cancel-btn" style="flex:1;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+          <button id="claim-confirm-btn" style="flex:1;padding:11px;border-radius:10px;background:var(--chord);border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Activate</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('#claim-code-input');
+    inp.focus();
+    ov.querySelector('#claim-cancel-btn').addEventListener('click', ()=> ov.remove());
+    ov.querySelector('#claim-confirm-btn').addEventListener('click', async ()=>{
+      const code = inp.value.trim().toUpperCase();
+      if(code.length !== 6){ toast('Enter the 6-character code'); return; }
+      try {
+        const res = await fetch(`${TEAM_API}/team/${teamCode}/claim-delegate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delegateCode: code })
+        });
+        const data = await res.json();
+        if(data.error) throw new Error(data.error);
+        teamRole       = 'session-leader';
+        teamToken      = data.sessionToken;
+        teamSessionExp = data.expiry;
+        saveTeamState();
+        ov.remove();
+        updateTeamUI();
+        toast('⭐ Session leader activated!');
+      } catch(e){ toast('Failed: ' + e.message); }
+    });
+  });
+
+  // ── Delete team (leader only) ──
+  document.getElementById('team-delete-btn').addEventListener('click', ()=>{
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--danger);margin-bottom:8px">Delete Team</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">This removes the team from the server. Members keep their local songs but can no longer sync. Type <strong style="color:var(--text)">DELETE</strong> to confirm.</div>
+        <input id="delete-confirm-input" type="text" placeholder="DELETE"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;margin-bottom:16px;box-sizing:border-box;outline:none">
+        <div style="display:flex;gap:10px">
+          <button id="del-team-cancel" style="flex:1;padding:11px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+          <button id="del-team-confirm" style="flex:1;padding:11px;border-radius:10px;background:var(--danger);border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Delete</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#del-team-cancel').addEventListener('click', ()=> ov.remove());
+    ov.querySelector('#del-team-confirm').addEventListener('click', async ()=>{
+      if(ov.querySelector('#delete-confirm-input').value.trim() !== 'DELETE'){ toast('Type DELETE to confirm'); return; }
+      try {
+        await fetch(`${TEAM_API}/team/${teamCode}`, { method:'DELETE', headers:{'X-Leader-Token':teamToken} });
+        clearTeamState();
+        songs = songs.filter(s => !s.teamSong);
+        save(); renderLibrary(); renderSetlist();
+        ov.remove(); updateTeamUI(); closeDrawer();
+        toast('Team deleted');
+      } catch(e){ toast('Delete failed: ' + e.message); }
+    });
+  });
 });
 
 window.addEventListener('load', initTeam);
