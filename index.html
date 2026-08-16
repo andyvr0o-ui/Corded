@@ -953,12 +953,40 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
   </div>
   <!-- Data -->
 
+  <!-- Library Backup -->
   <div class="drawer-section">
-    <h3>Backup &amp; Restore</h3>
+    <h3>Library Backup</h3>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px" id="library-backup-status"></div>
     <div style="display:flex;flex-direction:column;gap:7px">
-      <button class="drawer-btn" id="export-btn">↓ Save Library to File</button>
-      <button class="drawer-btn" id="import-library-btn">↑ Load Library from File</button>
+      <div style="position:relative">
+        <button class="drawer-btn" id="library-backup-btn" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📚 Backup / Restore</span><span style="font-size:10px;opacity:.6">▾</span>
+        </button>
+        <div id="library-backup-menu" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:4px">
+          <button class="drawer-btn" id="lib-save-device-btn" style="border-radius:0;border:none;border-bottom:1px solid var(--border)">↓ Save to device</button>
+          <button class="drawer-btn" id="lib-load-device-btn" style="border-radius:0;border:none;border-bottom:1px solid var(--border)">↑ Load from device</button>
+          <button class="drawer-btn" id="lib-save-drive-btn" style="border-radius:0;border:none;border-bottom:1px solid var(--border);display:none">☁ Save to Google Drive</button>
+          <button class="drawer-btn" id="lib-load-drive-btn" style="border-radius:0;border:none;display:none">☁ Load from Google Drive</button>
+        </div>
+      </div>
       <button class="drawer-btn" id="clear-btn" style="color:var(--danger);border-color:rgba(230,57,70,.3)">🗑 Clear Library</button>
+    </div>
+  </div>
+
+  <!-- Personal Settings Backup -->
+  <div class="drawer-section">
+    <h3>My Settings</h3>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px" id="personal-backup-status">Key/capo preferences for each song</div>
+    <div style="position:relative">
+      <button class="drawer-btn" id="personal-backup-btn" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🎵 Backup / Restore</span><span style="font-size:10px;opacity:.6">▾</span>
+      </button>
+      <div id="personal-backup-menu" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:4px">
+        <button class="drawer-btn" id="pers-save-device-btn" style="border-radius:0;border:none;border-bottom:1px solid var(--border)">↓ Save to device (.cor)</button>
+        <button class="drawer-btn" id="pers-load-device-btn" style="border-radius:0;border:none;border-bottom:1px solid var(--border)">↑ Load from device (.cor)</button>
+        <button class="drawer-btn" id="pers-save-drive-btn" style="border-radius:0;border:none;border-bottom:1px solid var(--border);display:none">☁ Save to Google Drive</button>
+        <button class="drawer-btn" id="pers-load-drive-btn" style="border-radius:0;border:none;display:none">☁ Load from Google Drive</button>
+      </div>
     </div>
   </div>
   <div style="padding:14px 16px;border-top:1px solid var(--border)">
@@ -2563,53 +2591,278 @@ document.getElementById('speed-val').textContent=scrollSpeed;
   }
 })();
 document.getElementById('toggle-notation').addEventListener('click',function(){useFlats=!useFlats;localStorage.setItem('cb_notation_manual','1');this.textContent=useFlats?'♭ Flat':'♯ Sharp';if(currentSong)renderSongView();});
-document.getElementById('export-btn').addEventListener('click',()=>{
+// ══════════════════════════════════════════
+// LIBRARY & PERSONAL SETTINGS BACKUP SYSTEM
+// ══════════════════════════════════════════
+
+// ── Dropdown toggles ──
+function wireBackupDropdown(btnId, menuId){
+  const btn  = document.getElementById(btnId);
+  const menu = document.getElementById(menuId);
+  if(!btn || !menu) return;
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const isOpen = menu.style.display !== 'none';
+    // Close all backup menus first
+    document.querySelectorAll('#library-backup-menu,#personal-backup-menu').forEach(m=>m.style.display='none');
+    document.querySelectorAll('#library-backup-btn,#personal-backup-btn').forEach(b=>b.classList.remove('open'));
+    if(!isOpen){
+      menu.style.display = 'block';
+      btn.classList.add('open');
+    }
+  });
+}
+wireBackupDropdown('library-backup-btn', 'library-backup-menu');
+wireBackupDropdown('personal-backup-btn', 'personal-backup-menu');
+document.addEventListener('click', ()=>{
+  document.querySelectorAll('#library-backup-menu,#personal-backup-menu').forEach(m=>m.style.display='none');
+  document.querySelectorAll('#library-backup-btn,#personal-backup-btn').forEach(b=>b.classList.remove('open'));
+});
+document.getElementById('library-backup-menu').addEventListener('click', e=>e.stopPropagation());
+document.getElementById('personal-backup-menu').addEventListener('click', e=>e.stopPropagation());
+
+// ── Show/hide Drive options based on connection ──
+function updateBackupDriveButtons(){
+  const connected = !!gdriveToken;
+  ['lib-save-drive-btn','lib-load-drive-btn','pers-save-drive-btn','pers-load-drive-btn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = connected ? '' : 'none';
+  });
+  const libStatus = document.getElementById('library-backup-status');
+  if(libStatus) libStatus.textContent = connected ? '☁ Drive connected' : '';
+}
+
+// ── Library: Save to device ──
+document.getElementById('lib-save-device-btn').addEventListener('click', ()=>{
   const data = { songs, setlists, version: Date.now(), exported: new Date().toISOString() };
-  const b = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const b = new Blob([JSON.stringify(data, null, 2)], { type: 'application/octet-stream' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(b);
   a.download = 'corded-backup-' + new Date().toISOString().slice(0,10) + '.json';
   a.click();
-  toast('Library saved!');
+  toast('Library saved to device');
   closeDrawer();
 });
 
-document.getElementById('import-library-btn').addEventListener('click',()=>{
+// ── Library: Load from device ──
+document.getElementById('lib-load-device-btn').addEventListener('click', ()=>{
   const inp = document.createElement('input');
-  inp.type = 'file';
-  inp.accept = '.json';
+  inp.type = 'file'; inp.accept = '.json';
   inp.onchange = e => {
-    const file = e.target.files[0];
-    if(!file) return;
+    const file = e.target.files[0]; if(!file) return;
     const r = new FileReader();
     r.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if(!data.songs || !Array.isArray(data.songs)){
-          toast('Invalid backup file'); return;
-        }
+        if(!data.songs || !Array.isArray(data.songs)){ toast('Invalid backup file'); return; }
         appConfirm(
-          'Load ' + data.songs.length + ' songs from this backup? Your current library will be replaced.',
-          () => {
+          'Load ' + data.songs.length + ' songs? Your current library will be replaced.',
+          ()=>{
             songs = data.songs;
             setlists = data.setlists && data.setlists.length ? data.setlists : [{id:'1',name:'Sunday Morning',songs:[]}];
-            activeSetlistIdx = 0;
-            save();
-            renderLibrary();
-            renderSetlist();
-            toast('Loaded ' + songs.length + ' songs!');
+            activeSetlistIdx = 0; save(); renderLibrary(); renderSetlist();
+            toast('Loaded ' + songs.length + ' songs');
             closeDrawer();
-          },
-          { title: 'Load Backup', okLabel: 'Load', okDanger: false }
+          }, { title:'Load Library', okLabel:'Load' }
         );
-      } catch(err){
-        toast('Could not read file: ' + err.message);
-      }
+      } catch(err){ toast('Could not read file: ' + err.message); }
     };
     r.readAsText(file);
   };
   inp.click();
 });
+
+// ── Library: Save to Drive ──
+document.getElementById('lib-save-drive-btn').addEventListener('click', async ()=>{
+  if(!gdriveToken){ toast('Connect Google Drive first'); return; }
+  appConfirm('Save current library to Google Drive? This will overwrite the existing Drive backup.',
+    async ()=>{
+      try {
+        await gdriveWrite({ songs, setlists, version: Date.now() });
+        localStorage.setItem('cb_version', Date.now().toString());
+        toast('✓ Library saved to Drive');
+        document.getElementById('library-backup-status').textContent = '☁ Saved to Drive — ' + new Date().toLocaleTimeString();
+      } catch(e){ toast('Drive save failed: ' + e.message); }
+    }, { title:'Save to Drive', okLabel:'Save to Drive' }
+  );
+});
+
+// ── Library: Load from Drive ──
+document.getElementById('lib-load-drive-btn').addEventListener('click', async ()=>{
+  if(!gdriveToken){ toast('Connect Google Drive first'); return; }
+  try {
+    const data = await gdriveRead();
+    if(!data || !data.songs){ toast('No library found on Drive'); return; }
+    appConfirm(
+      'Load ' + data.songs.length + ' songs from Google Drive? Your current library will be replaced.',
+      ()=>{
+        songs = data.songs;
+        setlists = data.setlists && data.setlists.length ? data.setlists : [{id:'1',name:'Sunday Morning',songs:[]}];
+        activeSetlistIdx = 0; save(); renderLibrary(); renderSetlist();
+        toast('✓ Library loaded from Drive');
+        closeDrawer();
+      }, { title:'Load from Drive', okLabel:'Load from Drive' }
+    );
+  } catch(e){ toast('Drive load failed: ' + e.message); }
+});
+
+// ══════════════════════════════════════════
+// PERSONAL SETTINGS BACKUP
+// ══════════════════════════════════════════
+const PERSONAL_GDRIVE_FILENAME = 'corded-personal.json';
+const PERSONAL_SYNC_DELAY = 3000;
+let personalSyncTimer = null;
+
+function getAllPersonalSettings(){
+  const out = {};
+  for(let i=0; i<localStorage.length; i++){
+    const key = localStorage.key(i);
+    if(key && key.startsWith('cb_personal_')){
+      try { out[key.replace('cb_personal_','')] = JSON.parse(localStorage.getItem(key)); }
+      catch(e){}
+    }
+  }
+  return out;
+}
+
+function applyPersonalSettings(data){
+  if(!data || typeof data !== 'object') return 0;
+  let count = 0;
+  Object.entries(data).forEach(([songId, settings])=>{
+    localStorage.setItem('cb_personal_' + songId, JSON.stringify(settings));
+    count++;
+  });
+  return count;
+}
+
+function schedulePersonalDriveSync(){
+  if(!gdriveToken) return;
+  clearTimeout(personalSyncTimer);
+  personalSyncTimer = setTimeout(async ()=>{
+    try {
+      const settings = getAllPersonalSettings();
+      await gdriveWriteFile(PERSONAL_GDRIVE_FILENAME, { settings, version: Date.now() });
+      const statusEl = document.getElementById('personal-backup-status');
+      if(statusEl) statusEl.textContent = '☁ Synced — ' + new Date().toLocaleTimeString();
+    } catch(e){ console.error('Personal sync error:', e); }
+  }, PERSONAL_SYNC_DELAY);
+}
+
+// Write a named file to appDataFolder
+async function gdriveWriteFile(filename, data){
+  const body = JSON.stringify(data);
+  // Find existing file
+  const res = await fetch(
+    'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27' + encodeURIComponent(filename) + '%27&fields=files(id)',
+    { headers: { Authorization: 'Bearer ' + gdriveToken } }
+  );
+  const list = await res.json();
+  const blob = new Blob([body], { type: 'application/json' });
+  if(list.files && list.files.length > 0){
+    await fetch('https://www.googleapis.com/upload/drive/v3/files/' + list.files[0].id + '?uploadType=media',
+      { method:'PATCH', headers:{ Authorization:'Bearer ' + gdriveToken, 'Content-Type':'application/json' }, body });
+  } else {
+    const meta = JSON.stringify({ name: filename, parents: ['appDataFolder'] });
+    const form = new FormData();
+    form.append('metadata', new Blob([meta], { type:'application/json' }));
+    form.append('file', blob);
+    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+      { method:'POST', headers:{ Authorization:'Bearer ' + gdriveToken }, body: form });
+  }
+}
+
+// Read a named file from appDataFolder
+async function gdriveReadFile(filename){
+  const res = await fetch(
+    'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27' + encodeURIComponent(filename) + '%27&fields=files(id)',
+    { headers: { Authorization: 'Bearer ' + gdriveToken } }
+  );
+  const list = await res.json();
+  if(!list.files || !list.files.length) return null;
+  const dl = await fetch('https://www.googleapis.com/drive/v3/files/' + list.files[0].id + '?alt=media',
+    { headers: { Authorization: 'Bearer ' + gdriveToken } });
+  return await dl.json();
+}
+
+// ── Personal: Save to device ──
+document.getElementById('pers-save-device-btn').addEventListener('click', ()=>{
+  const settings = getAllPersonalSettings();
+  const data = { type:'corded-personal-settings', version:1, exported: new Date().toISOString(), settings };
+  const b = new Blob([JSON.stringify(data, null, 2)], { type:'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'corded-settings-' + new Date().toISOString().slice(0,10) + '.cor';
+  a.click();
+  toast('Personal settings saved to device');
+  closeDrawer();
+});
+
+// ── Personal: Load from device ──
+document.getElementById('pers-load-device-btn').addEventListener('click', ()=>{
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.cor,.json';
+  inp.onchange = e => {
+    const file = e.target.files[0]; if(!file) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const settings = data.settings || data;
+        if(typeof settings !== 'object'){ toast('Invalid settings file'); return; }
+        const count = Object.keys(settings).length;
+        appConfirm(
+          'Load personal settings for ' + count + ' song' + (count===1?'':'s') + '? Your current personal settings will be replaced.',
+          ()=>{
+            const n = applyPersonalSettings(settings);
+            if(currentSong) loadPersonalSettings(currentSong.id);
+            toast('Loaded settings for ' + n + ' songs');
+            closeDrawer();
+          }, { title:'Load Settings', okLabel:'Load' }
+        );
+      } catch(err){ toast('Could not read file: ' + err.message); }
+    };
+    r.readAsText(file);
+  };
+  inp.click();
+});
+
+// ── Personal: Save to Drive ──
+document.getElementById('pers-save-drive-btn').addEventListener('click', async ()=>{
+  if(!gdriveToken){ toast('Connect Google Drive first'); return; }
+  try {
+    const settings = getAllPersonalSettings();
+    await gdriveWriteFile(PERSONAL_GDRIVE_FILENAME, { settings, version: Date.now() });
+    toast('✓ Personal settings saved to Drive');
+    const statusEl = document.getElementById('personal-backup-status');
+    if(statusEl) statusEl.textContent = '☁ Saved to Drive — ' + new Date().toLocaleTimeString();
+  } catch(e){ toast('Drive save failed: ' + e.message); }
+});
+
+// ── Personal: Load from Drive ──
+document.getElementById('pers-load-drive-btn').addEventListener('click', async ()=>{
+  if(!gdriveToken){ toast('Connect Google Drive first'); return; }
+  try {
+    const data = await gdriveReadFile(PERSONAL_GDRIVE_FILENAME);
+    if(!data || !data.settings){ toast('No personal settings found on Drive'); return; }
+    const count = Object.keys(data.settings).length;
+    appConfirm(
+      'Load personal settings for ' + count + ' song' + (count===1?'':'s') + ' from Drive?',
+      ()=>{
+        const n = applyPersonalSettings(data.settings);
+        if(currentSong) loadPersonalSettings(currentSong.id);
+        toast('✓ Loaded settings for ' + n + ' songs from Drive');
+        closeDrawer();
+      }, { title:'Load from Drive', okLabel:'Load from Drive' }
+    );
+  } catch(e){ toast('Drive load failed: ' + e.message); }
+});
+
+// Auto-sync personal settings when they change
+const _origSavePersonalKey = savePersonalKey;
+function savePersonalKey(songId, transpose, capo){
+  _origSavePersonalKey(songId, transpose, capo);
+  schedulePersonalDriveSync();
+}
 document.getElementById('clear-btn').addEventListener('click',()=>{
   appConfirm('Clear all songs?', ()=>{
     songs=[];setlists=[{id:'1',name:'Sunday Morning',songs:[]}];activeSetlistIdx=0;
@@ -5627,7 +5880,25 @@ function gdriveSignIn(){
 window.onCordedOAuthToken = async function(token) {
   gdriveSaveToken(token);
   updateGdriveStatus('✓ Connected — syncing...', true);
+  updateBackupDriveButtons();
   await gdriveSyncNow();
+  // Check for personal settings on Drive
+  try {
+    const persData = await gdriveReadFile(PERSONAL_GDRIVE_FILENAME);
+    if(persData && persData.settings){
+      const count = Object.keys(persData.settings).length;
+      appConfirm(
+        'Personal key/capo settings found on Drive for ' + count + ' song' + (count===1?'':'s') + '. Restore them?',
+        ()=>{
+          applyPersonalSettings(persData.settings);
+          if(currentSong) loadPersonalSettings(currentSong.id);
+          toast('✓ Personal settings restored from Drive');
+          const statusEl = document.getElementById('personal-backup-status');
+          if(statusEl) statusEl.textContent = '☁ Restored from Drive';
+        }, { title:'Restore Settings', okLabel:'Restore' }
+      );
+    }
+  } catch(e){ /* no personal settings on Drive yet */ }
 };
 
 // ── Called by MainActivity if sign-in fails ──
@@ -5756,6 +6027,7 @@ document.addEventListener('corded-saved', ()=>{
 function initGdrive(){
   if(gdriveLoadToken()){
     updateGdriveStatus('✓ Connected', true);
+    updateBackupDriveButtons();
     // Silently sync on open
     setTimeout(gdriveSyncNow, 1500);
   } else {
@@ -5781,6 +6053,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     appConfirm('Disconnect Google Drive? Your local songs are kept.', ()=>{
       gdriveClearToken();
       updateGdriveStatus('Not connected', false);
+      updateBackupDriveButtons();
       toast('Google Drive disconnected');
     }, {title:'Disconnect Drive', okLabel:'Disconnect', okDanger:true});
   });
