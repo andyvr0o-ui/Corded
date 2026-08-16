@@ -823,6 +823,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
             <button class="toolbar-chip" id="export-btn-drop">⎙ Export ▾</button>
             <div id="export-dropdown">
               <button class="export-dd-item" id="pdf-btn">⎙ Export PDF</button>
+              <button class="export-dd-item" id="chordpro-export-btn">⬇ Export ChordPro</button>
             </div>
           </div>
           <button class="toolbar-chip" id="qs-btn">⚙ Settings</button>
@@ -3983,6 +3984,37 @@ document.addEventListener('keydown', e=>{
 });
 
 // ===== PDF EXPORT =====
+document.getElementById('chordpro-export-btn').addEventListener('click', ()=>{
+  if(!currentSong) return;
+  // Build ChordPro content
+  const lines = [];
+  lines.push(`{title: ${currentSong.title}}`);
+  if(currentSong.artist) lines.push(`{artist: ${currentSong.artist}}`);
+  if(currentSong.key)    lines.push(`{key: ${currentSong.key}}`);
+  if(currentSong.capo)   lines.push(`{capo: ${currentSong.capo}}`);
+  lines.push('');
+
+  // Convert lyrics to ChordPro if in chart format
+  const rawLyrics = currentSong.lyrics || '';
+  const chordProLyrics = rawLyrics.includes('[') && !rawLyrics.match(/^[A-G][ #b]/m)
+    ? rawLyrics  // already ChordPro
+    : chartToChordPro(rawLyrics);
+
+  lines.push(chordProLyrics);
+
+  const output = lines.join('\n');
+  const filename = (currentSong.title || 'song').replace(/[^a-z0-9 ]/gi,'').trim().replace(/ +/g,'-').toLowerCase() + '.cho';
+  const blob = new Blob([output], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+
+  // Close dropdown
+  document.getElementById('export-dropdown').classList.remove('open');
+  toast('ChordPro file exported');
+});
+
 document.getElementById('pdf-btn').addEventListener('click', ()=>{
   if(!currentSong) return;
   // Fill print header
