@@ -22,7 +22,7 @@
   --border:#2a2f48;--danger:#e63946;--radius:12px;--t:.18s ease;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
-button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none!important;box-shadow:none!important;}
+button:focus,a:focus{outline:none!important;box-shadow:none!important;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;scrollbar-width:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
@@ -31,7 +31,8 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #top-nav{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}
 #app-title{font-family:'Playfair Display',serif;font-size:19px;color:var(--accent);flex:1}
 .icon-btn{width:38px;height:38px;border-radius:10px;border:none;background:var(--surface2);color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--t);flex-shrink:0}
-.icon-btn:hover,.icon-btn.active{background:var(--surface3);color:var(--accent)}
+.icon-btn.active{background:var(--surface3);color:var(--accent)}
+@media(hover:hover){.icon-btn:hover{background:var(--surface3);color:var(--accent)}}
 
 /* ── HAMBURGER DRAWER ── */
 #hamburger-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);z-index:150;display:none}
@@ -56,7 +57,7 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #drawer-song-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;line-height:1.3}
 #drawer-song-artist{font-size:13px;color:var(--text2);margin-top:3px}
 .drawer-btn{width:100%;padding:11px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-align:left;transition:all var(--t);display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.drawer-btn:hover{border-color:var(--accent);color:var(--accent)}
+@media(hover:hover){.drawer-btn:hover{border-color:var(--accent);color:var(--accent)}}
 .drawer-btn:last-child{margin-bottom:0}
 
 
@@ -111,7 +112,7 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 .sca-delete{background:var(--danger)}
 .sca-btn svg{flex-shrink:0}
 .song-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;cursor:pointer;transition:background var(--t),border-color var(--t);display:flex;align-items:center;gap:11px;position:relative;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-.song-card:hover{border-color:var(--accent);background:var(--surface2)}
+@media(hover:hover){.song-card:hover{border-color:var(--accent);background:var(--surface2)}}
 .song-card.in-setlist{border-left:3px solid var(--chord)}
 .song-card.selected{border-color:var(--chord);background:rgba(82,183,136,.12)}
 .song-card .sel-tick{display:none;width:22px;height:22px;border-radius:50%;background:var(--chord);color:#0d0f14;font-size:13px;align-items:center;justify-content:center;flex-shrink:0}
@@ -129,7 +130,7 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #select-bar-title{font-size:12px;color:var(--text3);font-weight:600;text-align:center}
 #select-bar-btns{display:flex;gap:8px}
 .select-bar-btn{flex:1;padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all var(--t)}
-.select-bar-btn:hover{border-color:var(--accent);color:var(--accent)}
+@media(hover:hover){.select-bar-btn:hover{border-color:var(--accent);color:var(--accent)}}
 .select-bar-btn.primary{background:var(--chord);color:#0d0f14;border-color:var(--chord)}
 #select-bar-cancel{background:none;border:none;color:var(--text3);font-family:'Nunito',sans-serif;font-size:12px;cursor:pointer;padding:4px;text-align:center}
 
@@ -154,8 +155,9 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #sv-artist{font-size:12px;color:var(--text2)}
 #song-view-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%;padding-top:6px}
 .toolbar-chip{padding:5px 11px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all var(--t);white-space:nowrap}
-.toolbar-chip:hover{border-color:var(--accent);color:var(--accent)}
+@media(hover:hover){.toolbar-chip:hover{border-color:var(--accent);color:var(--accent)}}
 .toolbar-chip.active{background:var(--accent);color:#0d0f14;border-color:var(--accent)}
+.toolbar-chip.open{border-color:var(--accent);color:var(--accent)}
 .transpose-btn{width:30px;height:30px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--t)}
 .transpose-btn:hover{background:var(--surface3);color:var(--accent)}
 #key-display{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--chord);padding:5px 11px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all var(--t);white-space:nowrap}
@@ -331,7 +333,7 @@ body.popup-mode #popup-col-picker { display: flex; }
 #setlist-tabs-row::-webkit-scrollbar{display:none}
 /* Session picker pill */
 #sl-picker-btn{width:100%;padding:10px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Playfair Display',serif;font-size:17px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:all var(--t)}
-#sl-picker-btn:hover{border-color:var(--accent)}
+@media(hover:hover){#sl-picker-btn:hover{border-color:var(--accent)}}
 #sl-picker-dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;z-index:100;display:none;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:fadeIn .15s ease}
 #sl-picker-dropdown.open{display:block}
 .sl-picker-item{width:100%;padding:12px 16px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:'Nunito',sans-serif;font-size:15px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;transition:background var(--t)}
@@ -397,7 +399,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 .btn-primary{flex:1;padding:13px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#0d0f14;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:opacity var(--t)}
 .btn-primary:hover{opacity:.9}
 .btn-secondary{padding:13px 18px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all var(--t)}
-.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+@media(hover:hover){.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}}
 
 /* ── CHORD BUILDER ── */
 #chord-builder{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:12px;margin-bottom:11px}
@@ -1749,8 +1751,8 @@ function openSong(id, context){
   const globalTwoCol = localStorage.getItem('cb_twocol');
   twoColMode = currentSong.twoCol !== undefined ? currentSong.twoCol : (globalTwoCol !== null ? globalTwoCol==='1' : window.innerWidth>=768);
   updatePillSpeed();
-  document.getElementById('toggle-chords-btn').classList.remove('active');
-  document.getElementById('toggle-chords-btn').textContent='♪ Chords';
+  document.getElementById('toggle-chords-btn').classList.toggle('active', showChords);
+  document.getElementById('toggle-chords-btn').textContent=showChords?'♩ Chords':'♩ Hidden';
   const tip = document.getElementById('chord-tooltip');
   if(tip){ tip.style.display='none'; delete tip.dataset.chord; delete tip.dataset.mode; }
   renderSongView();
@@ -3723,6 +3725,7 @@ document.getElementById('modal-save').addEventListener('click',()=>{
     e.stopPropagation();
     const isOpen = menu.style.display !== 'none';
     menu.style.display = isOpen ? 'none' : 'block';
+    btn.classList.toggle('open', !isOpen);
   });
 
   document.getElementById('add-song-new').addEventListener('click', ()=>{
@@ -3768,7 +3771,10 @@ document.getElementById('modal-save').addEventListener('click',()=>{
   // Close menu on tap outside
   document.addEventListener('click', e=>{
     const wrap = document.getElementById('add-song-wrap');
-    if(wrap && !wrap.contains(e.target)) menu.style.display = 'none';
+    if(wrap && !wrap.contains(e.target)){
+      menu.style.display = 'none';
+      btn.classList.remove('open');
+    }
   });
 })();
 
@@ -4013,6 +4019,7 @@ document.getElementById('chordpro-export-btn').addEventListener('click', ()=>{
 
   // Close dropdown
   document.getElementById('export-dropdown').classList.remove('open');
+  document.getElementById('export-btn-drop').classList.remove('open');
   toast('ChordPro file exported');
 });
 
@@ -4248,18 +4255,20 @@ document.getElementById('export-btn-drop').addEventListener('click', e=>{
   const dd = document.getElementById('export-dropdown');
   if(dd.classList.contains('open')){
     dd.classList.remove('open');
+    e.currentTarget.classList.remove('open');
     e.currentTarget.blur();
     return;
   }
-  // Position below the button using fixed coordinates
   const rect = e.currentTarget.getBoundingClientRect();
   dd.style.top = (rect.bottom + 6) + 'px';
   dd.style.right = (window.innerWidth - rect.right) + 'px';
   dd.classList.add('open');
+  e.currentTarget.classList.add('open');
 });
 document.getElementById('export-dropdown').addEventListener('click', e=>e.stopPropagation());
 document.addEventListener('click',()=>{
   document.getElementById('export-dropdown').classList.remove('open');
+  document.getElementById('export-btn-drop').classList.remove('open');
   document.getElementById('key-dropdown').classList.remove('open');
   document.getElementById('capo-dropdown').classList.remove('open');
 });
