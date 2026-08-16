@@ -942,6 +942,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
           ✓ Review Requests <span id="team-requests-badge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
         </button>
         <button class="drawer-btn" id="team-delegate-btn" style="display:none">🔑 Generate Delegation Code</button>
+        <button class="drawer-btn" id="team-revoke-btn" style="display:none;color:var(--accent);border-color:rgba(244,162,97,.4)">⊘ Delegation Active — Revoke</button>
         <button class="drawer-btn" id="team-claim-delegate-btn" style="display:none">↗ Enter Delegation Code</button>
         <button class="drawer-btn" id="team-leave-btn" style="display:none;color:var(--text3)">Leave Team</button>
         <button class="drawer-btn" id="team-delete-btn" style="display:none;color:var(--danger);border-color:rgba(230,57,70,.3)">🗑 Delete Team</button>
@@ -5429,6 +5430,8 @@ function updateTeamUI(){
     const reconnectBtn = document.getElementById('team-reconnect-btn');
     if(delegateBtn) delegateBtn.style.display = teamRole === 'leader' ? '' : 'none';
     if(claimBtn)    claimBtn.style.display    = teamRole === 'member' ? '' : 'none';
+    if(teamRole === 'leader' && window.refreshDelegationStatus) window.refreshDelegationStatus();
+    else { const rb = document.getElementById('team-revoke-btn'); if(rb) rb.style.display = 'none'; }
     if(deleteBtn)   deleteBtn.style.display   = teamRole === 'leader' ? '' : 'none';
     if(reconnectBtn) reconnectBtn.style.display = 'none';
   } else {
@@ -5445,6 +5448,7 @@ function updateTeamUI(){
     const reconnectBtn = document.getElementById('team-reconnect-btn');
     if(delegateBtn) delegateBtn.style.display = 'none';
     if(claimBtn)    claimBtn.style.display    = 'none';
+    const rb2 = document.getElementById('team-revoke-btn'); if(rb2) rb2.style.display = 'none';
     if(deleteBtn)   deleteBtn.style.display   = 'none';
     if(reconnectBtn) reconnectBtn.style.display = '';
   }
@@ -5506,6 +5510,18 @@ async function teamPush(){
       headers: { 'Content-Type': 'application/json', 'X-Leader-Token': teamToken },
       body: JSON.stringify({ songs: teamSongs, setlists: teamSetlists, version: Date.now() })
     });
+    if(res.status === 401 && teamRole === 'session-leader'){
+      // Delegation was revoked by the leader
+      teamRole = 'member';
+      teamToken = null;
+      teamSessionExp = 0;
+      localStorage.setItem('cb_team_role', 'member');
+      localStorage.removeItem('cb_team_token');
+      localStorage.removeItem('cb_team_session_exp');
+      updateTeamUI();
+      toast('Session leadership was revoked by the team leader');
+      return;
+    }
     const data = await res.json();
     if(data.ok){
       localStorage.setItem('cb_team_version', data.version.toString());
@@ -5853,10 +5869,54 @@ document.addEventListener('DOMContentLoaded', ()=>{
       });
       ov.querySelector('#del-revoke-btn').addEventListener('click', async ()=>{
         await fetch(`${TEAM_API}/team/${teamCode}/delegate`, { method:'DELETE', headers:{'X-Leader-Token':teamToken} });
-        ov.remove(); toast('Delegation code revoked');
+        ov.remove();
+        if(window.refreshDelegationStatus) window.refreshDelegationStatus();
+        toast('Delegation code revoked');
       });
-      ov.querySelector('#del-close-btn').addEventListener('click', ()=> ov.remove());
+      ov.querySelector('#del-close-btn').addEventListener('click', ()=>{
+        ov.remove();
+        if(window.refreshDelegationStatus) window.refreshDelegationStatus();
+      });
     } catch(e){ toast('Failed: ' + e.message); }
+  });
+
+  // ── Check delegation status (leader) ──
+  async function refreshDelegationStatus(){
+    const revokeBtn = document.getElementById('team-revoke-btn');
+    const genBtn    = document.getElementById('team-delegate-btn');
+    if(!revokeBtn || teamRole !== 'leader' || !teamCode){
+      if(revokeBtn) revokeBtn.style.display = 'none';
+      return;
+    }
+    try {
+      const res = await fetch(`${TEAM_API}/team/${teamCode}/delegate`, {
+        headers: { 'X-Leader-Token': teamToken }
+      });
+      const data = await res.json();
+      if(data.active){
+        const exp = new Date(data.expiry).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        revokeBtn.textContent = '⊘ ' + data.delegateCode + ' active until ' + exp + ' — Revoke';
+        revokeBtn.style.display = '';
+        if(genBtn) genBtn.style.display = 'none';
+      } else {
+        revokeBtn.style.display = 'none';
+        if(genBtn) genBtn.style.display = '';
+      }
+    } catch(e){ revokeBtn.style.display = 'none'; }
+  }
+  window.refreshDelegationStatus = refreshDelegationStatus;
+
+  document.getElementById('team-revoke-btn').addEventListener('click', ()=>{
+    appConfirm('Revoke the active delegation code? The session leader will lose their privileges immediately.',
+      async ()=>{
+        try {
+          await fetch(`${TEAM_API}/team/${teamCode}/delegate`, {
+            method:'DELETE', headers:{'X-Leader-Token':teamToken}
+          });
+          await refreshDelegationStatus();
+          toast('Delegation revoked');
+        } catch(e){ toast('Revoke failed: ' + e.message); }
+      }, { title:'Revoke Delegation', okLabel:'Revoke', okDanger:true });
   });
 
   // ── Claim delegation code (member) ──
