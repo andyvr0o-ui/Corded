@@ -918,33 +918,44 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
   </div>
 
 
-  <!-- ⇅ Data & Sync collapsible section -->
+  <!-- Team collapsible -->
+  <div class="drawer-section" style="padding:0">
+    <button id="team-section-toggle" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif">
+      <span style="display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">
+        👥 Team
+        <span id="team-section-status" style="font-size:10px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400"></span>
+      </span>
+      <span id="team-section-arrow" style="font-size:11px;color:var(--text3);transition:transform .2s">▾</span>
+    </button>
+    <div id="team-section-body" style="display:none;border-top:1px solid var(--border);padding:14px 16px">
+      <div id="team-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">No team connected</div>
+      <div id="team-code-display" style="display:none;margin-bottom:8px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:4px" id="team-code-label"></div>
+        <div style="font-size:11px;color:var(--text3)" id="team-role-label"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <button class="drawer-btn" id="team-create-btn">✦ Create Team</button>
+        <button class="drawer-btn" id="team-join-btn">→ Join Team</button>
+        <button class="drawer-btn" id="team-reconnect-btn" style="color:var(--text3)">↺ Reconnect as Leader</button>
+        <button class="drawer-btn" id="team-sync-btn" style="display:none">↕ Sync Team Library</button>
+        <button class="drawer-btn" id="team-requests-btn" style="display:none;position:relative">
+          ✓ Review Requests <span id="team-requests-badge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
+        </button>
+        <button class="drawer-btn" id="team-delegate-btn" style="display:none">🔑 Generate Delegation Code</button>
+        <button class="drawer-btn" id="team-claim-delegate-btn" style="display:none">↗ Enter Delegation Code</button>
+        <button class="drawer-btn" id="team-leave-btn" style="display:none;color:var(--text3)">Leave Team</button>
+        <button class="drawer-btn" id="team-delete-btn" style="display:none;color:var(--danger);border-color:rgba(230,57,70,.3)">🗑 Delete Team</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Data collapsible -->
   <div class="drawer-section" style="padding:0">
     <button id="data-sync-toggle" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif">
-      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">⇅ Data &amp; Sync</span>
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">⇅ App Data</span>
       <span id="data-sync-arrow" style="font-size:11px;color:var(--text3);transition:transform .2s">▾</span>
     </button>
     <div id="data-sync-body" style="display:none;border-top:1px solid var(--border)">
-
-      <!-- Team -->
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:10px">Team</div>
-        <div id="team-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">No team connected</div>
-        <div id="team-code-display" style="display:none;margin-bottom:8px">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:4px" id="team-code-label"></div>
-          <div style="font-size:11px;color:var(--text3)" id="team-role-label"></div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:7px">
-          <button class="drawer-btn" id="team-create-btn">✦ Create Team</button>
-          <button class="drawer-btn" id="team-join-btn">→ Join Team</button>
-          <button class="drawer-btn" id="team-reconnect-btn" style="color:var(--text3)">↺ Reconnect as Leader</button>
-          <button class="drawer-btn" id="team-sync-btn" style="display:none">↕ Sync Team Library</button>
-          <button class="drawer-btn" id="team-requests-btn" style="display:none;position:relative">
-            ✓ Review Requests <span id="team-requests-badge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
-          </button>
-          <button class="drawer-btn" id="team-leave-btn" style="display:none;color:var(--text3)">Leave Team</button>
-        </div>
-      </div>
 
       <!-- Google Drive -->
       <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
@@ -5343,8 +5354,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
 const TEAM_API = 'https://corded-teams.andyvr0o.workers.dev';
 
 let teamCode        = localStorage.getItem('cb_team_code') || null;
-let teamRole        = localStorage.getItem('cb_team_role') || null;  // 'leader' | 'member'
+let teamRole        = localStorage.getItem('cb_team_role') || null;  // 'leader' | 'member' | 'session-leader'
 let teamToken       = localStorage.getItem('cb_team_token') || null;
+let teamName        = localStorage.getItem('cb_team_name') || null;
+let teamSessionExp  = parseInt(localStorage.getItem('cb_team_session_exp') || '0');
 let teamSyncTimer   = null;
 let teamPushPending = false;
 
@@ -5352,16 +5365,37 @@ function saveTeamState(){
   if(teamCode)  localStorage.setItem('cb_team_code',  teamCode);
   if(teamRole)  localStorage.setItem('cb_team_role',  teamRole);
   if(teamToken) localStorage.setItem('cb_team_token', teamToken);
+  if(teamName)  localStorage.setItem('cb_team_name',  teamName);
+  localStorage.setItem('cb_team_session_exp', teamSessionExp.toString());
 }
 
 function clearTeamState(){
-  teamCode = teamRole = teamToken = null;
-  localStorage.removeItem('cb_team_code');
-  localStorage.removeItem('cb_team_role');
-  localStorage.removeItem('cb_team_token');
+  teamCode = teamRole = teamToken = teamName = null;
+  teamSessionExp = 0;
+  ['cb_team_code','cb_team_role','cb_team_token','cb_team_name','cb_team_session_exp'].forEach(k=>localStorage.removeItem(k));
+}
+
+// Check if session leader role has expired
+function checkSessionExpiry(){
+  if(teamRole === 'session-leader' && teamSessionExp && Date.now() > teamSessionExp){
+    teamRole = 'member';
+    teamToken = null;
+    localStorage.setItem('cb_team_role', 'member');
+    localStorage.removeItem('cb_team_token');
+    localStorage.removeItem('cb_team_session_exp');
+    updateTeamUI();
+    toast('Session leadership has expired — reverted to member');
+  }
 }
 
 function updateTeamUI(){
+  // Update Team section header status
+  const sectionStatus = document.getElementById('team-section-status');
+  if(sectionStatus){
+    sectionStatus.textContent = teamCode
+      ? (teamRole === 'leader' ? '★ ' + teamCode : '○ ' + teamCode)
+      : '';
+  }
   const statusEl    = document.getElementById('team-status');
   const codeDisplay = document.getElementById('team-code-display');
   const codeLabel   = document.getElementById('team-code-label');
@@ -5373,15 +5407,30 @@ function updateTeamUI(){
   const leaveBtn    = document.getElementById('team-leave-btn');
 
   if(teamCode){
-    statusEl.textContent = '✓ Connected';
+    const isLeaderRole = teamRole === 'leader' || teamRole === 'session-leader';
+    statusEl.textContent = '✓ ' + (teamName || teamCode);
     codeDisplay.style.display = 'block';
     codeLabel.textContent = teamCode;
-    roleLabel.textContent = teamRole === 'leader' ? '★ Team Leader' : '○ Team Member';
+    if(teamRole === 'leader') roleLabel.textContent = '★ Team Leader';
+    else if(teamRole === 'session-leader'){
+      const mins = Math.max(0, Math.round((teamSessionExp - Date.now()) / 60000));
+      roleLabel.textContent = '⭐ Session Leader (' + (mins > 60 ? Math.round(mins/60)+'h' : mins+'m') + ' remaining)';
+    }
+    else roleLabel.textContent = '○ Team Member';
     createBtn.style.display = 'none';
     joinBtn.style.display   = 'none';
     syncBtn.style.display   = '';
-    requestsBtn.style.display = teamRole === 'leader' ? '' : 'none';
+    requestsBtn.style.display = isLeaderRole ? '' : 'none';
     leaveBtn.style.display  = '';
+    // Delegation buttons
+    const delegateBtn = document.getElementById('team-delegate-btn');
+    const claimBtn    = document.getElementById('team-claim-delegate-btn');
+    const deleteBtn   = document.getElementById('team-delete-btn');
+    const reconnectBtn = document.getElementById('team-reconnect-btn');
+    if(delegateBtn) delegateBtn.style.display = teamRole === 'leader' ? '' : 'none';
+    if(claimBtn)    claimBtn.style.display    = teamRole === 'member' ? '' : 'none';
+    if(deleteBtn)   deleteBtn.style.display   = teamRole === 'leader' ? '' : 'none';
+    if(reconnectBtn) reconnectBtn.style.display = 'none';
   } else {
     statusEl.textContent = 'No team connected';
     codeDisplay.style.display = 'none';
@@ -5390,6 +5439,14 @@ function updateTeamUI(){
     syncBtn.style.display   = 'none';
     requestsBtn.style.display = 'none';
     leaveBtn.style.display  = 'none';
+    const delegateBtn = document.getElementById('team-delegate-btn');
+    const claimBtn    = document.getElementById('team-claim-delegate-btn');
+    const deleteBtn   = document.getElementById('team-delete-btn');
+    const reconnectBtn = document.getElementById('team-reconnect-btn');
+    if(delegateBtn) delegateBtn.style.display = 'none';
+    if(claimBtn)    claimBtn.style.display    = 'none';
+    if(deleteBtn)   deleteBtn.style.display   = 'none';
+    if(reconnectBtn) reconnectBtn.style.display = '';
   }
 }
 
@@ -5481,7 +5538,9 @@ function teamCreate(){
   overlay.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6)">
       <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">Create Team</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Choose a password — you'll use this to reconnect as leader from any device.</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Give your team a name and choose a password to reconnect as leader from any device.</div>
+      <input id="tc-team-name" type="text" placeholder="Team name (e.g. Grace Church Band)"
+        style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;margin-bottom:10px;box-sizing:border-box;outline:none">
       <input id="tc-pass1" type="password" placeholder="Leader password"
         style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;margin-bottom:10px;box-sizing:border-box;outline:none">
       <input id="tc-pass2" type="password" placeholder="Confirm password"
@@ -5500,17 +5559,21 @@ function teamCreate(){
     if(pass1 !== pass2){ toast('Passwords do not match'); return; }
     if(pass1.length < 4){ toast('Password must be at least 4 characters'); return; }
     try {
+      const nameEl = overlay.querySelector('#tc-team-name');
+      const tName = nameEl ? nameEl.value.trim() : '';
+      if(!tName){ toast('Enter a team name'); return; }
       const passHash = await hashPassword(pass1);
       const res = await fetch(`${TEAM_API}/team/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passHash })
+        body: JSON.stringify({ passHash, teamName: tName })
       });
       const data = await res.json();
       if(data.error) throw new Error(data.error);
       teamCode  = data.code;
       teamRole  = 'leader';
       teamToken = passHash;
+      teamName  = tName;
       saveTeamState();
       songs = songs.map(s => ({...s, teamSong: true}));
       save();
@@ -5576,6 +5639,7 @@ function teamJoinPrompt(){
       teamCode  = code;
       teamRole  = 'member';
       teamToken = null;
+      teamName  = data.teamName || code;
       saveTeamState();
       overlay.remove();
       updateTeamUI();
@@ -5609,7 +5673,7 @@ async function teamReviewRequests(){
   if(!teamCode || teamRole !== 'leader') return;
   try {
     const res = await fetch(`${TEAM_API}/team/${teamCode}/requests`, {
-      headers: { 'X-Leader-Token': teamToken }
+      headers: teamRole === 'leader' ? { 'X-Leader-Token': teamToken } : { 'X-Session-Token': teamToken }
     });
     const data = await res.json();
     const pending = data.requests || [];
@@ -5650,7 +5714,7 @@ async function teamReviewRequests(){
       try {
         await fetch(`${TEAM_API}/team/${teamCode}/request/${id}/${action}`, {
           method: 'POST',
-          headers: { 'X-Leader-Token': teamToken }
+          headers: teamRole === 'leader' ? { 'X-Leader-Token': teamToken } : { 'X-Session-Token': teamToken }
         });
         btn.closest('div[style]').remove();
         if(action === 'approve'){
@@ -5735,6 +5799,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         teamCode  = code;
         teamRole  = 'leader';
         teamToken = passHash;
+        teamName  = teamName || code; // keep existing name if known
         saveTeamState();
         overlay.remove();
         updateTeamUI();
@@ -6057,7 +6122,16 @@ function initGdrive(){
 
 // ── Wire buttons ──
 document.addEventListener('DOMContentLoaded', ()=>{
-  // ⇅ Data & Sync toggle
+  // Team section toggle
+document.getElementById('team-section-toggle').addEventListener('click', ()=>{
+  const body  = document.getElementById('team-section-body');
+  const arrow = document.getElementById('team-section-arrow');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+});
+
+// App Data toggle
 document.getElementById('data-sync-toggle').addEventListener('click', ()=>{
   const body  = document.getElementById('data-sync-body');
   const arrow = document.getElementById('data-sync-arrow');
