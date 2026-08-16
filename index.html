@@ -4004,7 +4004,7 @@ document.getElementById('chordpro-export-btn').addEventListener('click', ()=>{
 
   const output = lines.join('\n');
   const filename = (currentSong.title || 'song').replace(/[^a-z0-9 ]/gi,'').trim().replace(/ +/g,'-').toLowerCase() + '.cho';
-  const blob = new Blob([output], { type: 'text/plain' });
+  const blob = new Blob([output], { type: 'application/octet-stream' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
