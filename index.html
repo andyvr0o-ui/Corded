@@ -22,6 +22,7 @@
   --border:#2a2f48;--danger:#e63946;--radius:12px;--t:.18s ease;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none!important;box-shadow:none!important;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;scrollbar-width:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
@@ -1902,7 +1903,7 @@ document.getElementById('transpose-down').addEventListener('click',()=>{
 });
 
 document.getElementById('toggle-chords-btn').addEventListener('click',function(){
-  showChords=!showChords;this.classList.toggle('active',!showChords);
+  showChords=!showChords;this.classList.toggle('active',showChords);
   this.textContent=showChords?'♩ Chords':'♩ Hidden';renderSongView();
 });
 document.getElementById('add-to-setlist-btn').addEventListener('click',()=>{
@@ -5153,6 +5154,12 @@ async function teamPull(force=false){
     const songCount = data.songs.length;
     const slCount   = data.setlists ? data.setlists.length : 0;
     toast('✓ Synced — ' + songCount + ' song' + (songCount===1?'':'s') + ', ' + slCount + ' setlist' + (slCount===1?'':'s'));
+    // Preserve personal settings if member is currently viewing a song
+    if(currentSong){
+      const updatedSong = songs.find(s=>s.id===currentSong.id);
+      if(updatedSong) currentSong = updatedSong;
+      loadPersonalSettings(currentSong.id);
+    }
   } catch(e){
     console.error('Team pull error:', e);
     toast('Sync failed: ' + e.message);
