@@ -4245,7 +4245,11 @@ document.getElementById('qs-speed-dec').addEventListener('click',()=>{
 document.getElementById('export-btn-drop').addEventListener('click', e=>{
   e.stopPropagation();
   const dd = document.getElementById('export-dropdown');
-  if(dd.classList.contains('open')){ dd.classList.remove('open'); return; }
+  if(dd.classList.contains('open')){
+    dd.classList.remove('open');
+    e.currentTarget.blur();
+    return;
+  }
   // Position below the button using fixed coordinates
   const rect = e.currentTarget.getBoundingClientRect();
   dd.style.top = (rect.bottom + 6) + 'px';
