@@ -1,25 +1,37 @@
 {
   "name": "Corded",
   "short_name": "Corded",
-  "description": "Worship song chord book",
-  "start_url": "https://andyvr0o-ui.github.io/Corded/index.html",
-  "scope": "https://andyvr0o-ui.github.io/Corded/",
+  "description": "Chord charts for worship teams",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0d0f14",
   "theme_color": "#0d0f14",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://andyvr0o-ui.github.io/Corded/icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://andyvr0o-ui.github.io/Corded/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
