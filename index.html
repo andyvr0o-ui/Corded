@@ -29,7 +29,9 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 
 /* ── TOP NAV ── */
 #top-nav{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}
-#app-title{font-family:'Playfair Display',serif;font-size:19px;color:var(--accent);flex:1}
+#app-title{display:flex;align-items:center;gap:6px;flex:1;color:var(--chord);min-width:0}
+#app-logo-note{height:25px;width:auto;flex-shrink:0;display:block}
+#app-wordmark{font-family:'Playfair Display',serif;font-size:19px;line-height:1;letter-spacing:-.2px}
 .icon-btn{width:38px;height:38px;border-radius:10px;border:none;background:var(--surface2);color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--t);flex-shrink:0}
 .icon-btn.active{background:var(--surface3);color:var(--accent)}
 @media(hover:hover){.icon-btn:hover{background:var(--surface3);color:var(--accent)}}
@@ -717,7 +719,11 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
 
   <!-- TOP NAV -->
   <nav id="top-nav">
-    <span id="app-title">Corded</span>
+    <span id="app-title">
+      <svg id="app-logo-note" viewBox="76 119 154 274" aria-hidden="true">
+        <path transform="matrix(4.97230615372469,-0.00434349300043754,0.00434349300043754,4.97230615372469,152.903382439133,255.976045938301)" d="M-1.17 -27.44 C0.62 -24.6 2.28 -22.93 2.54 -22.56 L10.06 -13.13 Q15.34 -5.96 15.34 2.34 Q15.34 9.67 10.75 15.58 L8.45 15.58 Q11.24 9.38 11.24 3.47 Q11.24 -2.34 8.45 -6.25 Q5.67 -10.16 2.54 -10.64 L2.54 14.06 Q2.54 20.07 -1.04 23.75 Q-4.63 27.44 -9.86 27.44 Q-12.64 27.44 -14.06 26.1 Q-15.47 24.76 -15.47 22.56 Q-15.47 18.75 -12.42 15.94 Q-9.37 13.13 -5.56 13.13 Q-3.46 13.13 -1.17 14.06 C-1.17 0.23 -1.17 -27.44 -1.17 -27.44 Z" fill="currentColor"/>
+      </svg><span id="app-wordmark">Corded</span>
+    </span>
 
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
       <button id="team-update-dot" style="display:none;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--danger);border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0" title="Team library updated — tap to sync">● Update</button>
