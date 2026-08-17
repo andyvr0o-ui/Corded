@@ -1023,7 +1023,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
       style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);text-decoration:none;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;transition:color .2s">
       ☕ <span>Support Corded on Ko-fi</span>
     </a>
-    <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">Corded v1.2 · Made with care by AVR Builds</div>
+    <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">Corded v1.3 · Made with care by AVR Builds</div>
   </div>
 </div>
 
@@ -6556,7 +6556,7 @@ function openSongInternal(id, context){
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('/corded/service-worker.js')
+    navigator.serviceWorker.register('/service-worker.js')
       .then(r => console.log('SW registered'))
       .catch(e => console.log('SW failed:', e));
   });
