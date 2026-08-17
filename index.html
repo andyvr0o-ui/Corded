@@ -6465,6 +6465,72 @@ document.addEventListener('visibilitychange', ()=>{
 
 <script>
 // ══════════════════════════════════════════
+// EDITOR — TAP TO PLACE CURSOR, TAP AGAIN TO TYPE
+// ══════════════════════════════════════════
+// The soft keyboard eats half the screen, which makes it awkward to
+// position the cursor or reach the chord bar. So the first tap just
+// places the caret (keyboard suppressed via inputmode="none") and a
+// second tap in roughly the same spot brings the keyboard up.
+(function(){
+  const TAP_RADIUS = 44;   // px — how close counts as "the same place"
+  const IDS = ['chart-textarea', 'form-lyrics'];
+
+  IDS.forEach(id => {
+    const ta = document.getElementById(id);
+    if(!ta) return;
+
+    let lastX = null, lastY = null, typing = false;
+
+    // Start with the keyboard suppressed
+    ta.setAttribute('inputmode', 'none');
+
+    ta.addEventListener('click', e => {
+      // Once the keyboard is up, taps behave normally so you can
+      // reposition mid-sentence without it closing
+      if(typing) return;
+
+      const near = lastX !== null &&
+        Math.hypot(e.clientX - lastX, e.clientY - lastY) < TAP_RADIUS;
+
+      if(near){
+        typing = true;
+        // inputmode is only evaluated on focus, so blur and refocus,
+        // preserving caret and scroll so nothing jumps
+        const s = ta.selectionStart, en = ta.selectionEnd, top = ta.scrollTop;
+        ta.setAttribute('inputmode', 'text');
+        ta.blur();
+        requestAnimationFrame(() => {
+          ta.focus({ preventScroll: true });
+          try { ta.setSelectionRange(s, en); } catch(err){}
+          ta.scrollTop = top;
+        });
+      } else {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        // Nudge first-time users so it doesn't feel broken
+        if(!localStorage.getItem('cb_tap_hint')){
+          localStorage.setItem('cb_tap_hint', '1');
+          toast('Tap again to open the keyboard');
+        }
+      }
+    });
+
+    // Leaving the field resets it back to cursor-placement mode.
+    // Delayed, because inserting a chord blurs and immediately refocuses —
+    // that shouldn't count as leaving, or the keyboard would close mid-typing.
+    let resetTimer = null;
+    ta.addEventListener('blur', () => {
+      resetTimer = setTimeout(() => {
+        typing = false;
+        lastX = lastY = null;
+        ta.setAttribute('inputmode', 'none');
+      }, 250);
+    });
+    ta.addEventListener('focus', () => clearTimeout(resetTimer));
+  });
+})();
+
+// ══════════════════════════════════════════
 // DESKTOP POPUP MODE INIT
 // ══════════════════════════════════════════
 (function initDesktopPopup(){
