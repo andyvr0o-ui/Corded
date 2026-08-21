@@ -1389,7 +1389,10 @@ function teamPushSignature(){
   ].join('\u0001'));
   return sg.join('\u0002') + '\u0003' + sl.join('\u0002');
 }
-let lastPushSig = null;
+// Seeded immediately so the first real change is detected as a change.
+// (Previously null, which meant the first save after load was silently
+// consumed establishing the baseline and never pushed.)
+let lastPushSig = teamPushSignature();
 
 function save(){
   localStorage.setItem('cb_songs',JSON.stringify(songs));
@@ -1403,7 +1406,7 @@ function save(){
   if(typeof teamRole !== 'undefined' && (teamRole === 'leader' || teamRole === 'session-leader')){
     try {
       const sig = teamPushSignature();
-      if(lastPushSig !== null && sig !== lastPushSig && typeof scheduleTeamPush === 'function'){
+      if(sig !== lastPushSig && typeof scheduleTeamPush === 'function'){
         scheduleTeamPush();
       }
       lastPushSig = sig;
