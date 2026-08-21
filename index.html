@@ -1374,12 +1374,42 @@ let showChordNotes=JSON.parse(localStorage.getItem('cb_chord_notes')||'true');
 let defaultScrollSpeed=parseInt(localStorage.getItem('cb_speed')||'5');
 let recentChords=JSON.parse(localStorage.getItem('cb_recent_chords')||'[]');
 
+// Signature of everything that actually gets pushed to the team.
+// Deliberately excludes local display preferences (scrollSpeed, fontSize,
+// twoCol) so that opening a song or swiping a setlist never triggers a push.
+function teamPushSignature(){
+  const S = (typeof songs !== 'undefined' ? songs : []);
+  const L = (typeof setlists !== 'undefined' ? setlists : []);
+  const sg = S.filter(s => s.teamSong).map(s => [
+    s.id, s.title, s.artist, s.key, s.tag, s.lyrics,
+    s.transpose || 0, s.capo || 0
+  ].join('\u0001'));
+  const sl = L.filter(x => x.teamSetlist).map(x => [
+    x.id, x.name, (x.songs || []).join(',')
+  ].join('\u0001'));
+  return sg.join('\u0002') + '\u0003' + sl.join('\u0002');
+}
+let lastPushSig = null;
+
 function save(){
   localStorage.setItem('cb_songs',JSON.stringify(songs));
   localStorage.setItem('cb_setlists',JSON.stringify(setlists));
   localStorage.setItem('cb_fontsize',fontSize);
   localStorage.setItem('cb_speed',defaultScrollSpeed);
   localStorage.setItem('cb_recent_chords',JSON.stringify(recentChords));
+
+  // Catch-all: if anything pushable actually changed, schedule a push.
+  // Covers setlist edits, reordering, renames — everything, not just songs.
+  if(typeof teamRole !== 'undefined' && (teamRole === 'leader' || teamRole === 'session-leader')){
+    try {
+      const sig = teamPushSignature();
+      if(lastPushSig !== null && sig !== lastPushSig && typeof scheduleTeamPush === 'function'){
+        scheduleTeamPush();
+      }
+      lastPushSig = sig;
+    } catch(e){}
+  }
+
   // Notify Drive sync
   document.dispatchEvent(new Event('corded-saved'));
 }
@@ -5494,6 +5524,7 @@ async function teamPull(force=false){
     renderLibrary();
     renderSetlist();
     localStorage.setItem('cb_team_version', data.version.toString());
+    try { lastPushSig = teamPushSignature(); } catch(e){}
     const songCount = data.songs.length;
     const slCount   = data.setlists ? data.setlists.length : 0;
     toast('✓ Synced — ' + songCount + ' song' + (songCount===1?'':'s') + ', ' + slCount + ' setlist' + (slCount===1?'':'s'));
@@ -5535,6 +5566,7 @@ async function teamPush(){
     const data = await res.json();
     if(data.ok){
       localStorage.setItem('cb_team_version', data.version.toString());
+      try { lastPushSig = teamPushSignature(); } catch(e){}
       toast('✓ Team library pushed');
     }
   } catch(e){
