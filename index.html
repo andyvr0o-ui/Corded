@@ -814,6 +814,7 @@ textarea.form-input{min-height:140px;resize:vertical;font-family:'JetBrains Mono
         <button id="song-title-btn" title="Song options">
           <div style="display:flex;align-items:center;gap:8px">
             <div id="sv-title"></div>
+            <span id="sv-personal-badge" style="display:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);background:rgba(244,162,97,.15);border:1px solid rgba(244,162,97,.45);border-radius:6px;padding:2px 7px;flex-shrink:0" title="Your own key — differs from the team"></span>
             <span id="sv-capo-badge" style="display:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);background:rgba(244,162,97,.15);border:1px solid rgba(244,162,97,.3);border-radius:6px;padding:2px 7px;flex-shrink:0"></span>
           </div>
           <div id="sv-artist"></div>
@@ -1654,8 +1655,21 @@ function renderSongView(){
   // Show capo badge in header when capo > 0
   const capoBadge = document.getElementById('sv-capo-badge');
   if(capoBadge){
-    capoBadge.style.display = capo > 0 ? '' : 'none';
-    capoBadge.textContent = 'Capo ' + capo;
+    capoBadge.style.display = effectiveCapo > 0 ? '' : 'none';
+    capoBadge.textContent = 'Capo ' + effectiveCapo;
+  }
+  // Flag when a member is reading in a different key from the leader
+  const persBadge = document.getElementById('sv-personal-badge');
+  if(persBadge){
+    if(isTeamMemberViewingTeamSong() && personalTranspose !== 0){
+      const minor   = currentSong.key.endsWith('m') ? 'm' : '';
+      const myKey   = normaliseNote(transposeChord(currentSong.key, getEffectiveTranspose()).replace('m','')) + minor;
+      const teamKey = normaliseNote(transposeChord(currentSong.key, currentTranspose).replace('m','')) + minor;
+      persBadge.textContent = '♪ ' + myKey + ' · team ' + teamKey;
+      persBadge.style.display = '';
+    } else {
+      persBadge.style.display = 'none';
+    }
   }
   const lyricsEl=document.getElementById('song-lyrics');
   lyricsEl.style.fontSize=fontSize+'px';
@@ -1886,6 +1900,8 @@ function navigateSong(dir){
     if(!currentSong)return;
     setlistContext=setlistContext; // keep context
     currentTranspose=currentSong.transpose||0;capo=currentSong.capo||0;
+    // Personal key/capo are per song — reload them or they leak from the previous song
+    loadPersonalSettings(currentSong.id);
     scrollSpeed=currentSong.scrollSpeed??defaultScrollSpeed;
     fontSize=currentSong.fontSize??parseInt(localStorage.getItem('cb_fontsize')||'15');
     const _gtc=localStorage.getItem('cb_twocol');
@@ -2919,12 +2935,7 @@ document.getElementById('pers-load-drive-btn').addEventListener('click', async (
   } catch(e){ toast('Drive load failed: ' + e.message); }
 });
 
-// Auto-sync personal settings when they change
-const _origSavePersonalKey = savePersonalKey;
-function savePersonalKey(songId, transpose, capo){
-  _origSavePersonalKey(songId, transpose, capo);
-  schedulePersonalDriveSync();
-}
+// (personal settings Drive auto-sync lives in savePersonalKey itself)
 document.getElementById('clear-btn').addEventListener('click',()=>{
   appConfirm('Clear all songs?', ()=>{
     songs=[];setlists=[{id:'1',name:'Sunday Morning',songs:[]}];activeSetlistIdx=0;
@@ -5248,6 +5259,8 @@ function getPersonalKey(songId){
 
 function savePersonalKey(songId, transpose, capo){
   localStorage.setItem('cb_personal_' + songId, JSON.stringify({ transpose, capo }));
+  // Back up to Drive if connected, so personal settings survive a reinstall
+  if(typeof schedulePersonalDriveSync === 'function') schedulePersonalDriveSync();
 }
 
 function clearPersonalKey(songId){
